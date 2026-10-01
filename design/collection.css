@@ -1,0 +1,449 @@
+/* ==========================================================================
+   XAnimeLens - Collection Page Styles
+   Palette:
+     --col-bg:             #0f1115 (Deep dark foundation / Light: #f6f8fa)
+     --col-head-bg:        rgba(15, 17, 21, 0.88) (Sticky header translucent base)
+     --col-surface:        #171b22 (Card & panel surface / Light: #ffffff)
+     --col-surface-hover:  #1e232c (Hover surface)
+     --col-surface-subtle: #242a35 (Tags / pill backgrounds)
+     --col-border:         rgba(255, 255, 255, 0.08) (Subtle divider border)
+     --col-border-hover:   rgba(255, 255, 255, 0.18) (Interactive border)
+     --col-text:           #f0f3f6 (Primary text / Light: #1f2328)
+     --col-text-muted:     #8b949e (Secondary text / Light: #656d76)
+     --col-text-dim:       #5f6672 (Tertiary metadata / Light: #8c959f)
+     --col-accent:         #ff6b9a (Sakura pink accent / Light: #e04b7b)
+     --col-accent-hover:   #ff85ad (Accent on hover)
+     --col-accent-subtle:  rgba(255, 107, 154, 0.12) (Translucent accent tint)
+     --col-danger:         #f85149 (Delete & destructive action / Light: #cf222e)
+     --col-danger-subtle:  rgba(248, 81, 73, 0.12) (Translucent danger tint)
+     --col-radius:         14px (Card container corner radius)
+     --col-radius-sm:      8px (Form & button corner radius)
+     --col-radius-pill:    9999px (Capsule search & tool button radius)
+   ========================================================================== */
+
+:root {
+  --col-bg: #0f1115;
+  --col-head-bg: rgba(15, 17, 21, 0.88);
+  --col-surface: #171b22;
+  --col-surface-hover: #1e232c;
+  --col-surface-subtle: #242a35;
+  --col-border: rgba(255, 255, 255, 0.08);
+  --col-border-hover: rgba(255, 255, 255, 0.18);
+  --col-text: #f0f3f6;
+  --col-text-muted: #8b949e;
+  --col-text-dim: #5f6672;
+  --col-accent: #ff6b9a;
+  --col-accent-hover: #ff85ad;
+  --col-accent-subtle: rgba(255, 107, 154, 0.12);
+  --col-danger: #f85149;
+  --col-danger-hover: #da3633;
+  --col-danger-subtle: rgba(248, 81, 73, 0.12);
+  --col-radius: 14px;
+  --col-radius-sm: 8px;
+  --col-radius-pill: 9999px;
+  --col-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --col-bg: #f6f8fa;
+    --col-head-bg: rgba(246, 248, 250, 0.9);
+    --col-surface: #ffffff;
+    --col-surface-hover: #f3f4f6;
+    --col-surface-subtle: #eaeef2;
+    --col-border: rgba(0, 0, 0, 0.08);
+    --col-border-hover: rgba(0, 0, 0, 0.16);
+    --col-text: #1f2328;
+    --col-text-muted: #656d76;
+    --col-text-dim: #8c959f;
+    --col-accent: #e04b7b;
+    --col-accent-hover: #f05a8a;
+    --col-accent-subtle: rgba(224, 75, 123, 0.1);
+    --col-danger: #cf222e;
+    --col-danger-hover: #a40e26;
+    --col-danger-subtle: rgba(207, 34, 46, 0.08);
+    --col-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--col-bg);
+  color: var(--col-text);
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   1. Root Layout Container
+   -------------------------------------------------------------------------- */
+#col {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   2. Sticky Header Toolbar
+   -------------------------------------------------------------------------- */
+#col-head {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  background-color: var(--col-head-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--col-border);
+  margin-bottom: 24px;
+}
+
+#col-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--col-text);
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#col-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--col-text-muted);
+  background: var(--col-surface-subtle);
+  padding: 3px 9px;
+  border-radius: var(--col-radius-pill);
+}
+
+#col-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  max-width: 420px;
+  height: 34px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--col-text);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius-pill);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+#col-search:focus {
+  border-color: var(--col-accent);
+  box-shadow: 0 0 0 3px var(--col-accent-subtle);
+}
+
+#col-search::placeholder {
+  color: var(--col-text-dim);
+}
+
+#col-export-json,
+#col-export-csv,
+#col-import-btn {
+  height: 34px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--col-text);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+#col-export-json:hover,
+#col-export-csv:hover,
+#col-import-btn:hover {
+  background: var(--col-surface-hover);
+  border-color: var(--col-accent);
+  color: var(--col-accent);
+  box-shadow: 0 2px 8px var(--col-accent-subtle);
+}
+
+#col-import-file {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. Settings Details Panel
+   -------------------------------------------------------------------------- */
+#col-settings {
+  margin-bottom: 24px;
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius);
+  padding: 12px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#col-settings[open] {
+  padding-bottom: 18px;
+}
+
+#col-settings:hover {
+  border-color: var(--col-border-hover);
+}
+
+#col-settings summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--col-text-muted);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+#col-settings summary:hover {
+  color: var(--col-accent);
+}
+
+#col-settings label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--col-text-muted);
+  margin-top: 14px;
+  margin-right: 16px;
+  vertical-align: top;
+}
+
+#col-settings input {
+  height: 32px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--col-text);
+  background: var(--col-bg);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius-sm);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#col-settings input:focus {
+  border-color: var(--col-accent);
+  box-shadow: 0 0 0 2px var(--col-accent-subtle);
+}
+
+#col-save {
+  height: 32px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--col-accent);
+  border: 1px solid var(--col-accent);
+  border-radius: var(--col-radius-pill);
+  cursor: pointer;
+  margin-top: 14px;
+  vertical-align: bottom;
+  transition: all 0.2s ease;
+}
+
+#col-save:hover {
+  background: var(--col-accent-hover);
+  border-color: var(--col-accent-hover);
+  box-shadow: 0 2px 10px rgba(255, 107, 154, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   4. Collection Grid & Empty State
+   -------------------------------------------------------------------------- */
+#col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.col-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 64px 20px;
+  color: var(--col-text-dim);
+  font-size: 15px;
+  background: var(--col-surface);
+  border: 1px dashed var(--col-border);
+  border-radius: var(--col-radius);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   5. Anime Card
+   -------------------------------------------------------------------------- */
+.col-card {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--col-shadow);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.col-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--col-border-hover);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Cover (2:3 Aspect Ratio) */
+.col-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+  background: var(--col-surface-subtle);
+  border-bottom: 1px solid var(--col-border);
+}
+
+/* Anime Titles */
+.col-name {
+  margin: 12px 14px 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--col-text);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-native {
+  margin: 0 14px 6px;
+  font-size: 12px;
+  color: var(--col-text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Episode & Recognition Metadata */
+.col-episode {
+  margin: 0 14px 4px;
+  font-size: 12px;
+  color: var(--col-text-muted);
+}
+
+.col-sim {
+  margin: 0 14px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--col-accent);
+}
+
+.col-time {
+  margin: 0 14px 8px;
+  font-size: 11px;
+  color: var(--col-text-dim);
+}
+
+/* External Links */
+.col-links {
+  margin: 0 14px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.col-tweet,
+.col-bgm {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: var(--col-surface-subtle);
+  color: var(--col-text-muted);
+  text-decoration: none;
+  border: 1px solid var(--col-border);
+  transition: all 0.15s ease;
+}
+
+.col-tweet:hover,
+.col-bgm:hover {
+  color: var(--col-accent);
+  border-color: var(--col-accent);
+  background: var(--col-accent-subtle);
+}
+
+/* User Note Textarea */
+.col-note {
+  margin: 0 14px 12px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--col-text);
+  background: var(--col-bg);
+  border: 1px solid var(--col-border);
+  border-radius: var(--col-radius-sm);
+  resize: vertical;
+  min-height: 48px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.col-note:focus {
+  border-color: var(--col-accent);
+}
+
+.col-note::placeholder {
+  color: var(--col-text-dim);
+}
+
+/* Delete Button */
+.col-del {
+  margin: auto 14px 14px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--col-danger);
+  background: var(--col-danger-subtle);
+  border: 1px solid transparent;
+  border-radius: var(--col-radius-sm);
+  cursor: pointer;
+  align-self: flex-end;
+  transition: all 0.2s ease;
+}
+
+.col-del:hover {
+  background: var(--col-danger);
+  color: #ffffff;
+}
