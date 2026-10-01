@@ -84,3 +84,8 @@ export class Score {
   static readonly FAR_YEARS = 2;
   static readonly MIN = 40;
 }
+
+/** Recognizer 参数 */
+export class RecogDef {
+  static readonly KW_MAX = 3;
+}
