@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light dark;
+}
+
+#col {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+#col-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+#col-title {
+  font-size: 20px;
+  margin: 0;
+}
+
+#col-count {
+  color: #888;
+}
+
+#col-search {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+#col-settings {
+  margin-bottom: 16px;
+}
+
+#col-settings label {
+  display: block;
+  margin: 8px 0;
+}
+
+#col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.col-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #8884;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.col-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #8882;
+}
+
+.col-name {
+  font-size: 15px;
+  margin: 0;
+}
+
+.col-native,
+.col-episode,
+.col-sim,
+.col-time {
+  margin: 0;
+  color: #888;
+  font-size: 12px;
+}
+
+.col-links {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.col-note {
+  width: 100%;
+  resize: vertical;
+}
+
+.col-del {
+  align-self: flex-start;
+}
+
+.col-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #888;
+}
