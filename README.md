@@ -1,0 +1,36 @@
+# XAnimeLens
+
+Chrome 扩展：在 X（x.com）的视频上点「识别」，用 [trace.moe](https://trace.moe) 识别动漫出处，再用 [Bangumi API](https://bangumi.github.io/api/) 补全中文名、评分与条目链接；结果以浮动卡片显示，可收藏到本地并导出。
+
+## 安装
+
+```bash
+npm install
+npm run build
+```
+
+Chrome 打开 `chrome://extensions` → 开启「开发者模式」→「加载已解压的扩展程序」→ 选择 `dist/` 目录。
+
+## 使用
+
+- X 上任意视频右上角出现「识别」按钮，点击即暂停并识别当前帧（尽量停在没有字幕遮挡的画面）。
+- 卡片中可收藏、打开 Bangumi / AniList / trace.moe 预览片段。
+- 点击扩展图标或卡片底部「打开收藏集」进入收藏集：搜索、备注、删除、导出 JSON / CSV、导入 JSON。
+- 收藏集页「设置」中可填 trace.moe API Key（提高额度）、最低相似度、Bangumi Token。
+
+## 开发
+
+| 命令 | 作用 |
+|---|---|
+| `npm run build` / `npm run watch` | 打包到 `dist/` |
+| `npm run check` | TypeScript 类型检查 |
+| `npm test` | 单元测试（vitest） |
+| `npm run e2e` | 端到端：加载扩展、模拟 x.com 页面、真实调用 trace.moe 与 Bangumi（需联网，消耗 2 次 trace.moe 额度；首次需 `npx playwright install chromium`） |
+
+架构与模块契约见 [DESIGN.md](DESIGN.md)。
+
+## 截帧策略
+
+1. 直接 `canvas.drawImage(video)`（X 的 MSE 视频不会污染 canvas）。
+2. 直链视频（GIF 转 mp4 等）污染 canvas 时，用 `crossOrigin=anonymous` 重新加载同一地址并跳到同一时间点截帧（video.twimg.com 对 x.com 返回 CORS 头）。
+3. 仍失败时退回整页截图裁剪（`captureVisibleTab`，需要 `<all_urls>` 或 `activeTab`，默认未申请，此时会提示截帧失败）。

@@ -87,8 +87,12 @@ class Svc {
   static async capture(sender: chrome.runtime.MessageSender): Promise<string> {
     const win = sender.tab?.windowId;
     const opts: chrome.tabs.CaptureVisibleTabOptions = { format: 'jpeg', quality: 90 };
-    if (win == null) return chrome.tabs.captureVisibleTab(opts);
-    return chrome.tabs.captureVisibleTab(win, opts);
+    try {
+      if (win == null) return await chrome.tabs.captureVisibleTab(opts);
+      return await chrome.tabs.captureVisibleTab(win, opts);
+    } catch (e) {
+      throw new AppErr(ErrCode.CAPTURE, e instanceof Error ? e.message : String(e));
+    }
   }
 
   static async open(): Promise<void> {

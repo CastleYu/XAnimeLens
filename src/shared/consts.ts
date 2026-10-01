@@ -41,6 +41,7 @@ export class Def {
   static readonly TOP_N = 3;
   static readonly JPEG_Q = 0.9;
   static readonly MAX_EDGE = 1280;
+  static readonly CLONE_MS = 15000;
 }
 
 export enum ErrCode {

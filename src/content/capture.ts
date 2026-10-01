@@ -17,8 +17,48 @@ export class Capture {
     try {
       return Capture.canvas(video);
     } catch {
-      return Capture.fallback(video);
+      // 直链视频（如 GIF 转 mp4）会污染 canvas；video.twimg.com 对 x.com 返回 CORS 头，以 crossOrigin 重新加载即可截帧
     }
+    if (/^https?:/.test(video.currentSrc)) {
+      try {
+        return await Capture.clone(video.currentSrc, video.currentTime);
+      } catch {
+        // 继续整页截图兜底（需要 activeTab 或 <all_urls>）
+      }
+    }
+    return Capture.fallback(video);
+  }
+
+  /** 以 crossOrigin=anonymous 重新加载同一视频，跳到同一时间点截帧 */
+  static clone(src: string, t: number): Promise<string> {
+    return new Promise((ok, no) => {
+      const v = document.createElement('video');
+      const timer = setTimeout(() => done(new AppErr(ErrCode.CAPTURE, 'clone timeout')), Def.CLONE_MS);
+      const done = (e: unknown, url?: string): void => {
+        clearTimeout(timer);
+        v.removeAttribute('src');
+        v.load();
+        if (url) ok(url);
+        else no(e);
+      };
+      v.crossOrigin = 'anonymous';
+      v.muted = true;
+      v.preload = 'auto';
+      v.addEventListener('loadeddata', () => (v.currentTime = t), { once: true });
+      v.addEventListener(
+        'seeked',
+        () => {
+          try {
+            done(null, Capture.canvas(v));
+          } catch (e) {
+            done(e);
+          }
+        },
+        { once: true },
+      );
+      v.addEventListener('error', () => done(new AppErr(ErrCode.CAPTURE, 'clone load')), { once: true });
+      v.src = src;
+    });
   }
 
   /** canvas.drawImage(video)；跨域时 toDataURL 抛 SecurityError */

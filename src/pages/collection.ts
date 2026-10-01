@@ -99,7 +99,7 @@ class View {
 
     const sim = document.createElement('p');
     sim.className = ColDom.SIM;
-    sim.textContent = `相似度 ${Math.round(f.similarity * 100)}%`;
+    sim.textContent = `相似度 ${(f.similarity * 100).toFixed(1)}%`;
     c.append(sim);
 
     const time = document.createElement('p');
