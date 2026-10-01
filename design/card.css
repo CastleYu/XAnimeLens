@@ -1,0 +1,548 @@
+/* ==========================================================================
+   XAnimeLens - Floating Card & Recognition Button (Shadow DOM)
+   Palette:
+     --xal-bg:            #0f1115 (Deep dark foundation)
+     --xal-bg-glass:      rgba(15, 17, 21, 0.88) (Backdrop blur base)
+     --xal-surface:       rgba(26, 31, 40, 0.8) (Item surface)
+     --xal-surface-hover: rgba(35, 42, 54, 0.9) (Hover item surface)
+     --xal-accent:        #ff6b9a (Sakura pink accent)
+     --xal-accent-hover:  #ff85ad (Lighter accent on hover)
+     --xal-accent-subtle: rgba(255, 107, 154, 0.15) (Translucent accent tint)
+     --xal-text:          #f0f3f6 (Primary crisp text)
+     --xal-text-muted:    #8b949e (Secondary muted text)
+     --xal-text-dim:      #606773 (Tertiary metadata text)
+     --xal-border:        rgba(255, 255, 255, 0.08) (Subtle divider border)
+     --xal-border-hover:  rgba(255, 255, 255, 0.18) (Interactive border)
+     --xal-score:         #ffb800 (Bangumi rating star gold)
+     --xal-danger:        #ef4444 (Low similarity / error red)
+     --xal-radius:        14px (Card container corner radius)
+     --xal-radius-sm:     8px (Sub-element corner radius)
+     --xal-radius-pill:   9999px (Capsule button radius)
+   ========================================================================== */
+
+:host {
+  all: initial;
+  display: block;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #f0f3f6;
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+
+  --xal-bg: #0f1115;
+  --xal-bg-glass: rgba(15, 17, 21, 0.88);
+  --xal-surface: rgba(26, 31, 40, 0.8);
+  --xal-surface-hover: rgba(35, 42, 54, 0.9);
+  --xal-accent: #ff6b9a;
+  --xal-accent-hover: #ff85ad;
+  --xal-accent-subtle: rgba(255, 107, 154, 0.15);
+  --xal-text: #f0f3f6;
+  --xal-text-muted: #8b949e;
+  --xal-text-dim: #606773;
+  --xal-border: rgba(255, 255, 255, 0.08);
+  --xal-border-hover: rgba(255, 255, 255, 0.18);
+  --xal-score: #ffb800;
+  --xal-danger: #ef4444;
+  --xal-radius: 14px;
+  --xal-radius-sm: 8px;
+  --xal-radius-pill: 9999px;
+  --xal-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   1. Recognition Button (Injected into video player)
+   -------------------------------------------------------------------------- */
+.xal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--xal-radius-pill);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.xal-btn:hover {
+  background: var(--xal-accent);
+  border-color: var(--xal-accent);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(255, 107, 154, 0.45);
+  transform: translateY(-1px);
+}
+
+.xal-btn:active {
+  transform: translateY(0);
+}
+
+.xal-ico {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.xal-btn.xal-busy {
+  pointer-events: none;
+  opacity: 0.92;
+  background: rgba(15, 17, 21, 0.85);
+  border-color: var(--xal-accent);
+  color: var(--xal-accent);
+}
+
+.xal-btn.xal-busy .xal-ico {
+  animation: xal-spin 0.85s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   2. Floating Card Shell
+   -------------------------------------------------------------------------- */
+.xal-card {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--xal-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--xal-border);
+  border-radius: var(--xal-radius);
+  box-shadow: var(--xal-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: var(--xal-text);
+}
+
+/* Header */
+.xal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  cursor: move;
+  border-bottom: 1px solid var(--xal-border);
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.xal-logo {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.xal-quota {
+  font-size: 11px;
+  color: var(--xal-text-muted);
+  margin-left: auto;
+  margin-right: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.xal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--xal-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.xal-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Body & Scrollbar */
+.xal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.xal-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.xal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+.xal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* State Visibility Switching */
+.xal-loading,
+.xal-err,
+.xal-list {
+  display: none;
+}
+
+.xal-card[data-state="loading"] .xal-loading {
+  display: flex;
+}
+
+.xal-card[data-state="err"] .xal-err {
+  display: flex;
+}
+
+.xal-card[data-state="ok"] .xal-list {
+  display: flex;
+}
+
+/* Loading State */
+.xal-loading {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  gap: 12px;
+  color: var(--xal-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.xal-loading p {
+  margin: 0;
+}
+
+.xal-spin {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--xal-accent);
+  border-radius: 50%;
+  animation: xal-spin 0.8s linear infinite;
+}
+
+/* Error State */
+.xal-err {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  gap: 12px;
+  text-align: center;
+}
+
+.xal-err-msg {
+  margin: 0;
+  font-size: 12px;
+  color: var(--xal-danger);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.xal-retry {
+  padding: 5px 16px;
+  border-radius: var(--xal-radius-pill);
+  border: 1px solid var(--xal-border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--xal-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.xal-retry:hover {
+  background: var(--xal-accent);
+  border-color: var(--xal-accent);
+  color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   3. Result List & Item
+   -------------------------------------------------------------------------- */
+.xal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xal-item {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  background: var(--xal-surface);
+  border: 1px solid var(--xal-border);
+  border-radius: 10px;
+  padding: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+/* First result highlighted */
+.xal-item:first-child {
+  background: rgba(30, 36, 48, 0.88);
+  border-color: rgba(255, 107, 154, 0.32);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.xal-item:first-child .xal-cover {
+  width: 76px;
+  height: 106px;
+}
+
+.xal-item:first-child .xal-title {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* Secondary results slightly compact / dimmer */
+.xal-item:not(:first-child) {
+  opacity: 0.88;
+}
+
+.xal-item:not(:first-child):hover {
+  opacity: 1;
+  border-color: var(--xal-border-hover);
+}
+
+/* Low Similarity Badge */
+.xal-item.xal-low {
+  opacity: 0.62;
+}
+
+.xal-item.xal-low:hover {
+  opacity: 0.9;
+}
+
+.xal-item.xal-low::after {
+  content: "相似度低";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(239, 68, 68, 0.88);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1.3;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Cover Image */
+.xal-cover {
+  width: 72px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: #13171d;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: width 0.2s, height 0.2s;
+}
+
+/* Anime Info */
+.xal-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 56px;
+}
+
+.xal-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xal-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.xal-native {
+  margin: 0;
+  font-size: 11px;
+  color: var(--xal-text-muted);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.xal-meta {
+  margin: 2px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 11px;
+}
+
+.xal-ep {
+  color: var(--xal-text-muted);
+}
+
+.xal-sim {
+  color: var(--xal-accent);
+  font-weight: 600;
+}
+
+.xal-score {
+  color: var(--xal-score);
+  font-weight: 600;
+}
+
+/* Match Frame Snapshot */
+.xal-shot {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-top: 5px;
+  border: 1px solid var(--xal-border);
+  background: #12151a;
+  display: block;
+}
+
+/* Tag Links */
+.xal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.xal-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--xal-text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--xal-border);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.xal-link:hover {
+  color: var(--xal-accent);
+  border-color: rgba(255, 107, 154, 0.35);
+  background: var(--xal-accent-subtle);
+}
+
+/* Favorite Button */
+.xal-fav {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--xal-radius-pill);
+  border: 1px solid var(--xal-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--xal-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 1;
+  user-select: none;
+}
+
+.xal-fav:hover {
+  color: #ffffff;
+  border-color: var(--xal-accent);
+  background: var(--xal-accent-subtle);
+}
+
+.xal-fav.xal-on {
+  background: var(--xal-accent);
+  border-color: var(--xal-accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 107, 154, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   4. Footer
+   -------------------------------------------------------------------------- */
+.xal-foot {
+  padding: 10px 12px;
+  border-top: 1px solid var(--xal-border);
+  background: rgba(15, 17, 21, 0.6);
+}
+
+.xal-open {
+  width: 100%;
+  padding: 7px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--xal-border);
+  border-radius: var(--xal-radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--xal-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.xal-open:hover {
+  background: var(--xal-accent);
+  border-color: var(--xal-accent);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(255, 107, 154, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   5. Keyframes
+   -------------------------------------------------------------------------- */
+@keyframes xal-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
