@@ -122,3 +122,98 @@ export class Score {
 export class RecogDef {
   static readonly KW_MAX = 3;
 }
+
+/** 识别按钮与浮动卡片的 DOM 类名（Temp/card-dom.md 契约） */
+export class CardDom {
+  static readonly BTN_HOST = 'xal-btn-host';
+  static readonly BTN = 'xal-btn';
+  static readonly BTN_BUSY = 'xal-busy';
+  static readonly ICO = 'xal-ico';
+  static readonly CARD = 'xal-card';
+  static readonly HEAD = 'xal-head';
+  static readonly LOGO = 'xal-logo';
+  static readonly QUOTA = 'xal-quota';
+  static readonly CLOSE = 'xal-close';
+  static readonly BODY = 'xal-body';
+  static readonly LOADING = 'xal-loading';
+  static readonly SPIN = 'xal-spin';
+  static readonly ERR = 'xal-err';
+  static readonly ERR_MSG = 'xal-err-msg';
+  static readonly RETRY = 'xal-retry';
+  static readonly LIST = 'xal-list';
+  static readonly ITEM = 'xal-item';
+  static readonly LOW = 'xal-low';
+  static readonly COVER = 'xal-cover';
+  static readonly INFO = 'xal-info';
+  static readonly TITLE = 'xal-title';
+  static readonly NATIVE = 'xal-native';
+  static readonly META = 'xal-meta';
+  static readonly EP = 'xal-ep';
+  static readonly SIM = 'xal-sim';
+  static readonly SCORE = 'xal-score';
+  static readonly SHOT = 'xal-shot';
+  static readonly LINKS = 'xal-links';
+  static readonly LINK = 'xal-link';
+  static readonly FAV = 'xal-fav';
+  static readonly ON = 'xal-on';
+  static readonly FOOT = 'xal-foot';
+  static readonly OPEN = 'xal-open';
+}
+
+/** 卡片状态（写入 .xal-card 的 data-state） */
+export enum CardState {
+  LOADING = 'loading',
+  OK = 'ok',
+  ERR = 'err',
+}
+
+/** 错误码 → 中文提示 */
+export class ErrText {
+  static readonly NO_VIDEO = '未找到可识别的视频';
+  static readonly CAPTURE = '截帧失败';
+  static readonly NETWORK = '网络请求失败';
+  static readonly QUOTA = '识别额度已用完或请求过于频繁';
+  static readonly NOT_FOUND = '未识别到结果';
+  static readonly BAD_IMPORT = '导入文件无效';
+  static readonly UNKNOWN = '识别失败，请重试';
+  static readonly NOT_READY = '视频尚未加载';
+
+  static readonly MAP: Record<string, string> = {
+    [ErrCode.NO_VIDEO]: ErrText.NO_VIDEO,
+    [ErrCode.CAPTURE]: ErrText.CAPTURE,
+    [ErrCode.NETWORK]: ErrText.NETWORK,
+    [ErrCode.QUOTA]: ErrText.QUOTA,
+    [ErrCode.NOT_FOUND]: ErrText.NOT_FOUND,
+    [ErrCode.BAD_IMPORT]: ErrText.BAD_IMPORT,
+  };
+
+  /** 从任意异常提取中文提示（不依赖 AppErr，避免循环引用） */
+  static of(e: unknown): string {
+    const code = (e as { code?: string } | null)?.code;
+    return (code && ErrText.MAP[code]) || ErrText.UNKNOWN;
+  }
+}
+
+/** 界面文案 */
+export class Txt {
+  static readonly LOGO = 'XAnimeLens';
+  static readonly BTN_TITLE = '识别动漫';
+  static readonly BTN_IDLE = '识别';
+  static readonly BTN_BUSY = '识别中';
+  static readonly LOADING = '识别中…';
+  static readonly RETRY = '重试';
+  static readonly CLOSE = '关闭';
+  static readonly OPEN = '打开收藏集';
+  static readonly QUOTA = '本月';
+  static readonly EP = '第';
+  static readonly EP_UNIT = '集';
+  static readonly SEP = ' · ';
+  static readonly BGM = 'Bangumi';
+  static readonly CLIP = '预览片段';
+  static readonly ANILIST = 'AniList';
+  static readonly FAV = '☆ 收藏';
+  static readonly FAVED = '★ 已收藏';
+  static readonly LOW = '相似度低';
+  static readonly STAR = '★ ';
+  static readonly MAG = 'M11 11l5.5 5.5M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0z';
+}

@@ -1,0 +1,128 @@
+/* 最小可用样式；由美化者整体替换。契约见 Temp/card-dom.md */
+
+.xal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  font: 600 12px/1 system-ui, sans-serif;
+  color: #fff;
+  background: rgba(29, 155, 240, 0.92);
+  cursor: pointer;
+}
+.xal-btn:hover { background: #1d9bf0; }
+.xal-ico { width: 14px; height: 14px; display: block; }
+.xal-busy { opacity: 0.7; cursor: default; }
+.xal-busy .xal-ico { animation: xal-spin 0.8s linear infinite; }
+@keyframes xal-spin { to { transform: rotate(360deg); } }
+
+.xal-card {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  color: #e7e9ea;
+  background: rgba(0, 0, 0, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  font: 13px/1.4 system-ui, sans-serif;
+  overflow: hidden;
+}
+.xal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: move;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.xal-logo { font-weight: 700; flex: 1; }
+.xal-quota { opacity: 0.65; font-size: 12px; }
+.xal-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.xal-body { max-height: 70vh; overflow: auto; }
+.xal-foot { padding: 8px 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.xal-open {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.xal-loading { padding: 24px; text-align: center; }
+.xal-spin {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #1d9bf0;
+  border-radius: 50%;
+  animation: xal-spin 0.8s linear infinite;
+}
+.xal-err { padding: 16px; text-align: center; }
+.xal-err-msg { margin: 0 0 8px; color: #f4212e; }
+.xal-retry {
+  padding: 4px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.xal-loading, .xal-err, .xal-list { display: none; }
+.xal-card[data-state='loading'] .xal-loading { display: block; }
+.xal-card[data-state='err'] .xal-err { display: block; }
+.xal-card[data-state='ok'] .xal-list { display: block; }
+
+.xal-list { list-style: none; margin: 0; padding: 0; }
+.xal-item {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  position: relative;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.xal-item:first-child { border-top: 0; }
+.xal-cover { width: 72px; height: 100px; object-fit: cover; border-radius: 6px; flex: none; }
+.xal-info { flex: 1; min-width: 0; }
+.xal-title { margin: 0; font-size: 14px; }
+.xal-native { margin: 2px 0; opacity: 0.7; font-size: 12px; }
+.xal-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; font-size: 12px; }
+.xal-sim { color: #1d9bf0; }
+.xal-score { color: #ffd400; }
+.xal-shot { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; margin: 6px 0; }
+.xal-links { display: flex; flex-wrap: wrap; gap: 10px; }
+.xal-link { color: #1d9bf0; text-decoration: none; }
+.xal-low { opacity: 0.55; }
+.xal-low::after {
+  content: '相似度低';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(244, 33, 46, 0.8);
+}
+.xal-fav {
+  align-self: flex-start;
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.xal-fav.xal-on { color: #ffd400; border-color: #ffd400; }

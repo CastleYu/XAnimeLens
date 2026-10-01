@@ -134,3 +134,10 @@ export interface CardItem {
   shot: string; // trace.moe 截图 dataURL 或空串
   fav: boolean;
 }
+
+/** background RECOGNIZE 的返回数据 */
+export interface CardData {
+  items: CardItem[];
+  quota?: number;
+  quotaUsed?: number;
+}

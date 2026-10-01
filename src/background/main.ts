@@ -1,0 +1,104 @@
+import { Img } from './img';
+import { Recognizer } from '../core/recognize';
+import { Store } from '../core/store';
+import { ErrCode, Msg, Page } from '../shared/consts';
+import { AppErr } from '../shared/err';
+import type { CardData, CardItem, Err, Recog, Req } from '../shared/types';
+
+class Svc {
+  static boot(): void {
+    chrome.runtime.onMessage.addListener((req, sender, send) => {
+      void Svc.route(req as Req, sender).then(
+        (data) => send({ ok: true, data }),
+        (e) => send({ ok: false, err: Svc.err(e) }),
+      );
+      return true;
+    });
+    chrome.action.onClicked.addListener(() => void Svc.open());
+  }
+
+  static async route(req: Req, sender: chrome.runtime.MessageSender): Promise<unknown> {
+    switch (req.type) {
+      case Msg.RECOGNIZE:
+        return Svc.recognize(req.img);
+      case Msg.CAPTURE:
+        return Svc.capture(sender);
+      case Msg.FAV_ADD:
+        await Store.add(req.fav);
+        return null;
+      case Msg.FAV_DEL:
+        await Store.del(req.key);
+        return null;
+      case Msg.FAV_HAS:
+        return Store.has(req.key);
+      case Msg.FAV_LIST:
+        return Store.list();
+      case Msg.CFG_GET:
+        return Store.cfg();
+      case Msg.OPEN_COLLECTION:
+        await Svc.open();
+        return null;
+      default:
+        throw new AppErr(ErrCode.NETWORK, 'unknown message');
+    }
+  }
+
+  static async recognize(dataUrl: string): Promise<CardData> {
+    const blob = await (await fetch(dataUrl)).blob();
+    const cfg = await Store.cfg();
+    const out = await Recognizer.run(blob, cfg);
+
+    const items: CardItem[] = await Promise.all(
+      out.items.map(async (recog: Recog): Promise<CardItem> => {
+        const [cover, shot] = await Promise.all([
+          Img.data(Svc.cover(recog)),
+          Img.data(Svc.shot(recog.hit.image)),
+        ]);
+        return { recog, cover, shot, fav: await Store.has(String(recog.hit.anilist.id)) };
+      }),
+    );
+
+    return { items, quota: out.quota, quotaUsed: out.quotaUsed };
+  }
+
+  /** 封面优先级：bgm.common → bgm.large → anilist.large */
+  static cover(r: Recog): string {
+    const b = r.bgm;
+    return (
+      b?.images?.common ||
+      b?.images?.large ||
+      r.hit.anilist.coverImage?.large ||
+      ''
+    );
+  }
+
+  /** 给 trace.moe 截图 URL 追加 size=m（用 URL 对象正确处理已有 query） */
+  static shot(url: string): string {
+    if (!url) return '';
+    try {
+      const u = new URL(url);
+      u.searchParams.set('size', 'm');
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  static async capture(sender: chrome.runtime.MessageSender): Promise<string> {
+    const win = sender.tab?.windowId;
+    const opts: chrome.tabs.CaptureVisibleTabOptions = { format: 'jpeg', quality: 90 };
+    if (win == null) return chrome.tabs.captureVisibleTab(opts);
+    return chrome.tabs.captureVisibleTab(win, opts);
+  }
+
+  static async open(): Promise<void> {
+    await chrome.tabs.create({ url: chrome.runtime.getURL(Page.COLLECTION) });
+  }
+
+  static err(e: unknown): Err {
+    if (e instanceof AppErr) return { code: e.code, msg: e.message };
+    return { code: ErrCode.NETWORK, msg: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+Svc.boot();
