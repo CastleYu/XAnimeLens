@@ -74,6 +74,39 @@ export class Export {
   static readonly VERSION = 1;
 }
 
+/** 收藏集页面 DOM 标识 */
+export class ColDom {
+  static readonly ROOT = 'col';
+  static readonly HEAD = 'col-head';
+  static readonly TITLE = 'col-title';
+  static readonly COUNT = 'col-count';
+  static readonly SEARCH = 'col-search';
+  static readonly EXPORT_JSON = 'col-export-json';
+  static readonly EXPORT_CSV = 'col-export-csv';
+  static readonly IMPORT_BTN = 'col-import-btn';
+  static readonly IMPORT_FILE = 'col-import-file';
+  static readonly SETTINGS = 'col-settings';
+  static readonly SET_TMKEY = 'col-tmkey';
+  static readonly SET_MINSIM = 'col-minsim';
+  static readonly SET_BGMTOKEN = 'col-bgmtoken';
+  static readonly SET_SAVE = 'col-save';
+  static readonly GRID = 'col-grid';
+  static readonly EMPTY = 'col-empty';
+  static readonly CARD = 'col-card';
+  static readonly COVER = 'col-cover';
+  static readonly NAME = 'col-name';
+  static readonly NATIVE = 'col-native';
+  static readonly EPISODE = 'col-episode';
+  static readonly SIM = 'col-sim';
+  static readonly TIME = 'col-time';
+  static readonly LINKS = 'col-links';
+  static readonly TWEET = 'col-tweet';
+  static readonly BGM = 'col-bgm';
+  static readonly NOTE = 'col-note';
+  static readonly DEL = 'col-del';
+  static readonly STYLE = 'col-style';
+}
+
 /** Matcher 打分 */
 export class Score {
   static readonly NAME_EQ = 50;

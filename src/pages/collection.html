@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>XAnimeLens 收藏集</title>
+  </head>
+  <body>
+    <div id="col">
+      <header id="col-head">
+        <h1 id="col-title">XAnimeLens 收藏集</h1>
+        <span id="col-count"></span>
+        <input id="col-search" type="search" placeholder="搜索标题 / 日文名 / 备注" />
+        <button id="col-export-json" type="button">导出 JSON</button>
+        <button id="col-export-csv" type="button">导出 CSV</button>
+        <button id="col-import-btn" type="button">导入 JSON</button>
+        <input id="col-import-file" type="file" accept="application/json,.json" hidden />
+      </header>
+
+      <details id="col-settings">
+        <summary>设置</summary>
+        <label>trace.moe API Key <input id="col-tmkey" type="password" autocomplete="off" /></label>
+        <label>最低相似度 <input id="col-minsim" type="number" min="0.5" max="1" step="0.01" /></label>
+        <label>Bangumi Token <input id="col-bgmtoken" type="password" autocomplete="off" /></label>
+        <button id="col-save" type="button">保存</button>
+      </details>
+
+      <main id="col-grid"></main>
+    </div>
+    <script type="module" src="collection.js"></script>
+  </body>
+</html>
