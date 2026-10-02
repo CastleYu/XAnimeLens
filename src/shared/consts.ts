@@ -42,9 +42,20 @@ export class TmParam {
   static readonly CUT = 'cutBorders';
 }
 
+/** 增量识别使用的长连接（chrome.runtime.connect） */
+export class PortDef {
+  static readonly RECOG = 'recognize';
+}
+
+/** 长连接上 background → content 的消息类型 */
+export enum PortMsg {
+  PART = 'part', // 部分来源已返回
+  DONE = 'done', // 全部来源已返回
+  ERR = 'err',
+}
+
 /** runtime 消息类型 */
 export enum Msg {
-  RECOGNIZE = 'recognize',
   CAPTURE = 'capture',
   FAV_ADD = 'favAdd',
   FAV_DEL = 'favDel',
@@ -76,6 +87,7 @@ export enum ErrCode {
   QUOTA = 'quota',
   NOT_FOUND = 'notFound',
   BAD_IMPORT = 'badImport',
+  STALE = 'stale', // 扩展已更新/重载，页面里的旧脚本与扩展断开
 }
 
 /** 注入 X 页面的 DOM 标识 */
@@ -86,10 +98,16 @@ export class Dom {
   static readonly VIDEO_SEL = 'div[data-testid="videoPlayer"]';
   static readonly TWEET_SEL = 'article[data-testid="tweet"]';
   static readonly STATUS_LINK_SEL = 'a[href*="/status/"]';
+  /** 注入实例标识：扩展更新后新脚本据此替换旧脚本留下的失效按钮 */
+  static readonly INST_ATTR = 'data-xal-inst';
+  /** 写在 <html> 上：当前接管页面的实例，其余实例自行停止 */
+  static readonly OWNER_ATTR = 'data-xal-owner';
+  static readonly MATCHES = ['https://x.com/*', 'https://twitter.com/*'];
 }
 
 export class Page {
   static readonly COLLECTION = 'collection.html';
+  static readonly CONTENT_JS = 'content.js';
 }
 
 export class Export {
@@ -204,6 +222,8 @@ export class CardDom {
   static readonly MULTI = 'xal-multi';
   static readonly CHARS = 'xal-chars';
   static readonly NOTE = 'xal-note';
+  static readonly MORE = 'xal-more';
+  static readonly PENDING = 'xal-pending';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -223,6 +243,10 @@ export class ErrText {
   static readonly BAD_IMPORT = '导入文件无效';
   static readonly UNKNOWN = '识别失败，请重试';
   static readonly NOT_READY = '视频尚未加载';
+  static readonly STALE = '扩展已更新，请刷新页面后再试';
+  static readonly DETAIL_MAX = 80;
+  /** 扩展上下文失效时 Chrome 抛出的错误信息片段 */
+  static readonly STALE_HINTS = ['Extension context invalidated', 'Receiving end does not exist'];
 
   static readonly MAP: Record<string, string> = {
     [ErrCode.NO_VIDEO]: ErrText.NO_VIDEO,
@@ -231,13 +255,24 @@ export class ErrText {
     [ErrCode.QUOTA]: ErrText.QUOTA,
     [ErrCode.NOT_FOUND]: ErrText.NOT_FOUND,
     [ErrCode.BAD_IMPORT]: ErrText.BAD_IMPORT,
+    [ErrCode.STALE]: ErrText.STALE,
   };
 
   /** 从任意异常提取中文提示（不依赖 AppErr，避免循环引用） */
   static of(e: unknown): string {
     const code = (e as { code?: string } | null)?.code;
-    return (code && ErrText.MAP[code]) || ErrText.UNKNOWN;
+    const msg = e instanceof Error ? e.message : String(e ?? '');
+    if (code === ErrCode.STALE || ErrText.stale(msg)) return ErrText.STALE;
+    const base = (code && ErrText.MAP[code]) || ErrText.UNKNOWN;
+    // 附带原始原因，便于用户反馈与排查（STALE 之外的错误都带上）
+    const detail = msg && msg !== code ? msg.slice(0, ErrText.DETAIL_MAX) : '';
+    return detail ? `${base}（${detail}）` : base;
   }
+
+  static stale(msg: string): boolean {
+    return ErrText.STALE_HINTS.some((h) => msg.includes(h));
+  }
+
 }
 
 /** 界面文案 */
@@ -366,6 +401,7 @@ export class SrcTxt {
   static readonly UNSURE = '置信度低';
   static readonly AI = '疑似 AI 生成图';
   static readonly FAILED = '未返回';
+  static readonly PENDING = '识别中…';
 }
 
 /** AnimeTrace 上传文件名 */

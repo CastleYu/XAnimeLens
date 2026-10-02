@@ -8,6 +8,8 @@ import type { CardData } from '../shared/types';
 /** 发现视频、注入识别按钮。 */
 export class Inject {
   static boot(): void {
+    // 最后启动的实例接管页面（manifest 注入与更新后补注入可能同时存在）
+    document.documentElement.setAttribute(Dom.OWNER_ATTR, Inject.id);
     Inject.scan();
     Inject.watch();
   }
@@ -15,6 +17,11 @@ export class Inject {
   static watch(): void {
     let queued = false;
     const obs = new MutationObserver(() => {
+      // 扩展更新后旧实例失效：停止观察，让新注入的实例接管按钮
+      if (!Inject.live()) {
+        obs.disconnect();
+        return;
+      }
       if (queued) return;
       queued = true;
       requestAnimationFrame(() => {
@@ -25,18 +32,30 @@ export class Inject {
     obs.observe(document.body, { childList: true, subtree: true });
   }
 
+  /** 仍与扩展连接，且是当前接管页面的实例 */
+  static live(): boolean {
+    return !!chrome.runtime?.id && document.documentElement.getAttribute(Dom.OWNER_ATTR) === Inject.id;
+  }
+
   static scan(): void {
+    if (!Inject.live()) return;
     document.querySelectorAll<HTMLElement>(Dom.VIDEO_SEL).forEach((el) => Inject.one(el));
   }
 
   /** 给单个播放器注入按钮；React 重建宿主时补回 */
+  /** 本脚本实例标识；旧实例（扩展更新前注入、已失效）留下的按钮会被替换 */
+  static readonly id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
   static one(el: HTMLElement): void {
-    if (el.querySelector<HTMLElement>(`:scope > .${CardDom.BTN_HOST}`)) return;
+    const own = `:scope > .${CardDom.BTN_HOST}[${Dom.INST_ATTR}="${Inject.id}"]`;
+    if (el.querySelector<HTMLElement>(own)) return;
+    el.querySelectorAll(`:scope > .${CardDom.BTN_HOST}`).forEach((n) => n.remove());
     el.setAttribute(Dom.MARK_ATTR, '1');
     if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
 
     const host = document.createElement('div');
     host.className = CardDom.BTN_HOST;
+    host.setAttribute(Dom.INST_ATTR, Inject.id);
     Object.assign(host.style, {
       position: 'absolute',
       top: '8px',
@@ -79,9 +98,11 @@ export class Inject {
       video.pause();
       Card.loading();
       const img = await Capture.frame(video);
-      const data = await Bus.send<CardData>({ type: Msg.RECOGNIZE, img });
-      await Card.render(data, Inject.tweetUrl(el), img);
+      const url = Inject.tweetUrl(el);
+      // 先返回的来源先展示，后续来源返回后重新合并渲染
+      await Bus.stream(img, (data, done) => Card.render(data, url, img, done));
     } catch (e) {
+      console.error('[XAnimeLens] recognize failed', e);
       Card.error(ErrText.of(e), () => void Inject.run(el, btn));
     } finally {
       Inject.busy(btn, false);

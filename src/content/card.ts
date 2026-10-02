@@ -17,6 +17,8 @@ export class Card {
 
   static loading(): void {
     Card.build();
+    Card.opened.clear();
+    Card.clips.clear();
     Card.card!.setAttribute('data-state', CardState.LOADING);
     Card.show(true);
   }
@@ -33,13 +35,22 @@ export class Card {
     Card.show(true);
   }
 
-  static async render(data: CardData, tweetUrl: string, input = ''): Promise<void> {
+  static seq = 0;
+  /** 已展开对比面板的条目（增量重绘时保持展开） */
+  static opened = new Set<string>();
+  /** 匹配片段缓存：增量重绘时不重复下载 */
+  static clips = new Map<string, Promise<string>>();
+
+  static async render(data: CardData, tweetUrl: string, input = '', done = true): Promise<void> {
     Card.build();
+    const seq = ++Card.seq;
     if (!data.items.length) {
+      if (!done) return; // 仍有来源在识别中，保持加载态
       Card.error(ErrText.NOT_FOUND, () => {});
       return;
     }
     const min = await Card.min();
+    if (seq !== Card.seq) return; // 已有更新的结果
     Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl, input)));
     Card.notes(data);
     Card.quotaShow(data);
@@ -99,15 +110,17 @@ export class Card {
     if (score) meta.append(Card.mk('span', CardDom.SCORE, Txt.STAR + score));
     info.append(meta);
     Card.srcs(info, r.srcs);
-    if (r.chars.length) info.append(Card.mk('p', CardDom.CHARS, SrcTxt.CHARS + r.chars.join(SrcTxt.CHAR_SEP)));
-    Card.meta(info, r);
+    // 标题区之外的内容放到下方整行（.xal-more），不再挤在封面右侧的窄列里
+    const more = Card.mk('div', CardDom.MORE);
+    if (r.chars.length) more.append(Card.mk('p', CardDom.CHARS, SrcTxt.CHARS + r.chars.join(SrcTxt.CHAR_SEP)));
+    Card.meta(more, r);
 
     if (it.shot) {
       const shot = Card.mk('img', CardDom.SHOT);
       shot.src = it.shot;
       shot.alt = '';
       shot.referrerPolicy = 'no-referrer';
-      info.append(shot);
+      more.append(shot);
     }
 
     const links = Card.mk('div', CardDom.LINKS);
@@ -120,18 +133,25 @@ export class Card {
     if (input || h?.video) {
       const tog = Card.mk('button', `${CardDom.LINK} ${CardDom.CMP_BTN}`, Txt.CMP);
       tog.type = 'button';
+      const key = Store.key(r);
+      const flip = (open: boolean, scroll: boolean): void => {
+        cmp.hidden = !open;
+        tog.textContent = open ? Txt.CMP_OPEN : Txt.CMP;
+        tog.classList.toggle(CardDom.ON, open);
+        if (open) Card.opened.add(key);
+        else Card.opened.delete(key);
+        if (open && !cmp.childElementCount) Card.cmp(cmp, input, h?.video ?? '', it.shot);
+        if (open && scroll) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+      };
       tog.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        cmp.hidden = !cmp.hidden;
-        tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
-        tog.classList.toggle(CardDom.ON, !cmp.hidden);
-        if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, h?.video ?? '', it.shot);
-        if (!cmp.hidden) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+        flip(cmp.hidden, true);
       });
+      if (Card.opened.has(key)) flip(true, false);
       links.prepend(tog);
     }
-    if (links.childElementCount) info.append(links);
+    if (links.childElementCount) more.append(links);
     li.append(info);
 
     const fav = Card.mk('button', CardDom.FAV);
@@ -142,7 +162,7 @@ export class Card {
       e.preventDefault();
       void Card.toggle(it, fav, tweetUrl);
     });
-    li.append(fav, cmp);
+    li.append(fav, more, cmp);
 
     return li;
   }
@@ -161,6 +181,9 @@ export class Card {
     const lines = data.errs.map((e) => `${SrcTxt.NAME[e.src] ?? e.src} ${SrcTxt.FAILED}（${ErrText.MAP[e.code] ?? e.msg}）`);
     if (data.ai) lines.push(SrcTxt.AI);
     for (const t of lines) Card.list!.append(Card.mk('li', CardDom.NOTE, t));
+    for (const s of data.pending) {
+      Card.list!.append(Card.mk('li', `${CardDom.NOTE} ${CardDom.PENDING}`, `${SrcTxt.NAME[s] ?? s} ${SrcTxt.PENDING}`));
+    }
   }
 
   /** 作品信息：形式 / 季度 / 集数 / 原作 / R18 + 类型标签 + 制作与导演 */
@@ -192,7 +215,8 @@ export class Card {
     const hint = Card.mk('p', CardDom.CMP_HINT, Txt.CMP_LOADING);
     const col = Card.col(Txt.CMP_OUT, hint);
     box.append(col);
-    void Bus.send<string>({ type: Msg.CLIP, url: clip }).then(
+    if (!Card.clips.has(clip)) Card.clips.set(clip, Bus.send<string>({ type: Msg.CLIP, url: clip }));
+    void Card.clips.get(clip)!.then(
       (src) => {
         const v = Card.mk('video', CardDom.CMP_MEDIA);
         v.muted = true;
@@ -253,6 +277,7 @@ export class Card {
 
   static build(): void {
     if (Card.host) return;
+    document.getElementById(Dom.HOST_ID)?.remove(); // 旧实例留下的卡片
 
     const host = document.createElement('div');
     host.id = Dom.HOST_ID;

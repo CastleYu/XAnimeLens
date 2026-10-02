@@ -49,6 +49,7 @@ class E2e {
     await p.waitForTimeout(500);
 
     await p.locator('.xal-btn').click(); // playwright 可穿透 open shadow root
+    const t0 = Date.now();
     const card = p.locator('.xal-card');
     await card.waitFor();
     await p.waitForFunction(
@@ -59,6 +60,14 @@ class E2e {
       null,
       { timeout: 60000 },
     );
+    const first = Date.now() - t0;
+    const pendingAtFirst = await p.locator('.xal-pending').allTextContents();
+    await p.waitForFunction(
+      () => !document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-pending'),
+      null,
+      { timeout: 60000 },
+    );
+    console.log(`[${cors ? 'cors-video' : 'direct-src'}] first result ${first}ms (pending: ${pendingAtFirst.join(', ') || '-'}), all done ${Date.now() - t0}ms`);
     const state = await card.getAttribute('data-state');
     const tag = cors ? 'cors-video' : 'direct-src';
     await p.screenshot({ path: `${out}/card-${tag}.png` });
@@ -74,6 +83,42 @@ class E2e {
     const chars = await p.locator('.xal-chars').first().textContent().catch(() => '');
     console.log(`[${tag}] sources: ${srcs.join(' | ')}  ${chars}`);
     if (!srcs.includes('AnimeTrace')) throw new Error(`[${tag}] AnimeTrace 未合并到首条结果`);
+
+    if (cors) {
+      // 复现：扩展更新/重载后不刷新 X 页面，再点识别
+      const old = sw;
+      // 与在 chrome://extensions 点“刷新”相同；需开启开发者模式（用户环境本就开启）
+      const mgr = await ctx.newPage();
+      await mgr.goto('chrome://extensions');
+      await mgr.evaluate(() => new Promise((r) => chrome.developerPrivate.updateProfileConfiguration({ inDeveloperMode: true }, r)));
+      await mgr.evaluate((eid) => new Promise((r) => chrome.developerPrivate.reload(eid, { failQuietly: true }, r)), id);
+      await mgr.close();
+      await p.bringToFront();
+      for (let i = 0; i < 60 && (sw === old || !sw); i++) {
+        await p.waitForTimeout(250);
+        sw = ctx.serviceWorkers().find((w) => w !== old) ?? old;
+      }
+      console.log(`[${tag}] new service worker: ${sw !== old}`);
+      await p.waitForFunction(
+        () => document.querySelectorAll('.xal-btn-host').length === 1 && !document.querySelector('#xal-host'),
+        null,
+        { timeout: 15000 },
+      ).catch(() => {});
+      const hosts = await p.locator('.xal-btn-host').count();
+      await p.locator('.xal-btn').click();
+      await p.waitForFunction(
+        () => {
+          const c = document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-card');
+          return c && c.getAttribute('data-state') !== 'loading';
+        },
+        null,
+        { timeout: 60000 },
+      );
+      const st = await p.locator('.xal-card').getAttribute('data-state');
+      const msg = st === 'ok' ? '' : await p.locator('.xal-err-msg').textContent();
+      console.log(`[${tag}] after extension reload: buttons=${hosts} state=${st} ${msg}`);
+      if (st !== 'ok') throw new Error(`[${tag}] 扩展重载后识别失败：${msg}`);
+    }
 
     await p.locator('.xal-cmp-btn').first().click();
     await p.waitForFunction(

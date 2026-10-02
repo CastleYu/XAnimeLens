@@ -118,3 +118,59 @@ describe('Matcher.same / byName', () => {
     expect(Matcher.byName('完全不相关的作品', [s1, kon])).toBeNull();
   });
 });
+
+function defer<T>(): { p: Promise<T>; ok: (v: T) => void } {
+  let ok!: (v: T) => void;
+  const p = new Promise<T>((r) => (ok = r));
+  return { p, ok };
+}
+
+describe('Recognizer.stream 先返回先展示', () => {
+  it('trace.moe 先返回：先推送 trace.moe 结果（AnimeTrace 待定），再推送合并结果', async () => {
+    bgm();
+    const a = defer<AtResp>();
+    vi.spyOn(TraceMoe, 'search').mockResolvedValue(tm([hit]));
+    vi.spyOn(AnimeTrace, 'search').mockReturnValue(a.p);
+    const seen: { srcs: string[][]; pending: string[]; done: boolean }[] = [];
+    const run = Recognizer.stream(img, cfg, (r, done) => {
+      seen.push({ srcs: r.items.map((i) => i.srcs), pending: r.pending, done });
+    });
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toEqual({ srcs: [[Src.TM]], pending: [Src.AT], done: false });
+    a.ok(at([['ご注文はうさぎですか？', '天々座理世']]));
+    await run;
+    expect(seen.at(-1)).toEqual({ srcs: [[Src.TM, Src.AT]], pending: [], done: true });
+  });
+
+  it('AnimeTrace 先返回：先展示角色识别结果，trace.moe 返回后合并为一条', async () => {
+    bgm();
+    const t = defer<TmResp>();
+    vi.spyOn(TraceMoe, 'search').mockReturnValue(t.p);
+    vi.spyOn(AnimeTrace, 'search').mockResolvedValue(at([['ご注文はうさぎですか？', '天々座理世']]));
+    const seen: { hits: boolean[]; pending: string[]; done: boolean }[] = [];
+    const run = Recognizer.stream(img, cfg, (r, done) => {
+      seen.push({ hits: r.items.map((i) => i.hit != null), pending: r.pending, done });
+    });
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toEqual({ hits: [false], pending: [Src.TM], done: false });
+    t.ok(tm([hit]));
+    await run;
+    expect(seen.at(-1)).toEqual({ hits: [true], pending: [], done: true });
+  });
+
+  it('先返回的来源没有结果时不推送空列表', async () => {
+    bgm();
+    const t = defer<TmResp>();
+    vi.spyOn(TraceMoe, 'search').mockReturnValue(t.p);
+    vi.spyOn(AnimeTrace, 'search').mockResolvedValue({ code: 0, data: [] });
+    const seen: number[] = [];
+    const run = Recognizer.stream(img, cfg, (r) => {
+      seen.push(r.items.length);
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(seen).toEqual([]);
+    t.ok(tm([hit]));
+    await run;
+    expect(seen).toEqual([1]); // 最后一个来源返回时只推送一次最终结果
+  });
+});

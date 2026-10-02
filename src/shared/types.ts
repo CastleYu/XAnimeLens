@@ -1,4 +1,4 @@
-import type { ErrCode, Msg, Src } from './consts';
+import type { ErrCode, Msg, PortMsg, Src } from './consts';
 
 /** trace.moe 原始结果（只列用到的字段） */
 export interface TmTitle {
@@ -137,6 +137,7 @@ export interface RecogResult {
   quotaUsed?: number;
   errs: SrcErr[]; // 失败但不影响整体的来源
   ai?: boolean; // AnimeTrace 判定为 AI 生成图
+  pending: Src[]; // 仍在识别中的来源（增量推送时非空）
 }
 
 /** 收藏集条目 */
@@ -180,7 +181,6 @@ export interface Err {
 
 /** runtime 消息 */
 export type Req =
-  | { type: Msg.RECOGNIZE; img: string } // dataURL
   | { type: Msg.CAPTURE } // 返回整个可见标签页 dataURL
   | { type: Msg.FAV_ADD; fav: Fav }
   | { type: Msg.FAV_DEL; key: string }
@@ -207,6 +207,7 @@ export interface CardData {
   quotaUsed?: number;
   errs: SrcErr[];
   ai?: boolean;
+  pending: Src[];
 }
 
 /** AnimeTrace 结果按作品聚合 */
@@ -215,3 +216,13 @@ export interface AtWork {
   chars: string[];
   unsure: boolean; // 该作品的所有检测框都置信度低
 }
+
+/** 增量识别长连接：content → background */
+export interface PortReq {
+  img: string; // dataURL
+}
+
+/** 增量识别长连接：background → content */
+export type PortRes =
+  | { type: PortMsg.PART | PortMsg.DONE; data: CardData }
+  | { type: PortMsg.ERR; err: Err };

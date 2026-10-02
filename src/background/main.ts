@@ -1,9 +1,9 @@
 import { Img } from './img';
 import { Recognizer } from '../core/recognize';
 import { Store } from '../core/store';
-import { ErrCode, Msg, Page } from '../shared/consts';
+import { Dom, ErrCode, Msg, Page, PortDef, PortMsg } from '../shared/consts';
 import { AppErr } from '../shared/err';
-import type { CardData, CardItem, Err, Recog, Req } from '../shared/types';
+import type { CardData, CardItem, Err, PortReq, PortRes, Recog, RecogResult, Req } from '../shared/types';
 
 class Svc {
   static boot(): void {
@@ -14,13 +14,16 @@ class Svc {
       );
       return true;
     });
+    chrome.runtime.onConnect.addListener((port) => {
+      if (port.name !== PortDef.RECOG) return;
+      port.onMessage.addListener((req: PortReq) => void Svc.stream(port, req));
+    });
     chrome.action.onClicked.addListener(() => void Svc.open());
+    chrome.runtime.onInstalled.addListener(() => void Svc.reinject());
   }
 
   static async route(req: Req, sender: chrome.runtime.MessageSender): Promise<unknown> {
     switch (req.type) {
-      case Msg.RECOGNIZE:
-        return Svc.recognize(req.img);
       case Msg.CAPTURE:
         return Svc.capture(sender);
       case Msg.FAV_ADD:
@@ -45,22 +48,44 @@ class Svc {
     }
   }
 
-  static async recognize(dataUrl: string): Promise<CardData> {
-    const blob = await (await fetch(dataUrl)).blob();
-    const cfg = await Store.cfg();
-    const out = await Recognizer.run(blob, cfg);
+  /** 增量识别：每个来源返回后推送一次 PART，全部返回后推送 DONE */
+  static async stream(port: chrome.runtime.Port, req: PortReq): Promise<void> {
+    const post = (m: PortRes): void => {
+      try {
+        port.postMessage(m);
+      } catch {
+        // content 已断开（关闭卡片 / 页面跳转），忽略
+      }
+    };
+    try {
+      const blob = await (await fetch(req.img)).blob();
+      const cfg = await Store.cfg();
+      const imgs = new Map<string, Promise<string>>(); // 同一张图只拉一次
+      await Recognizer.stream(blob, cfg, async (r, done) => {
+        post({ type: done ? PortMsg.DONE : PortMsg.PART, data: await Svc.card(r, imgs) });
+      });
+    } catch (e) {
+      post({ type: PortMsg.ERR, err: Svc.err(e) });
+    }
+  }
 
+  /** 识别结果 → 卡片数据：远程图片转 dataURL（X 的 CSP 禁止外链图片） */
+  static async card(out: RecogResult, imgs: Map<string, Promise<string>>): Promise<CardData> {
+    const data = (url: string): Promise<string> => {
+      if (!url) return Promise.resolve('');
+      if (!imgs.has(url)) imgs.set(url, Img.data(url));
+      return imgs.get(url)!;
+    };
     const items: CardItem[] = await Promise.all(
       out.items.map(async (recog: Recog): Promise<CardItem> => {
         const [cover, shot] = await Promise.all([
-          Img.data(Svc.cover(recog)),
-          Img.data(Svc.shot(recog.hit?.image ?? '')),
+          data(Svc.cover(recog)),
+          data(Svc.shot(recog.hit?.image ?? '')),
         ]);
         return { recog, cover, shot, fav: await Store.has(Store.key(recog)) };
       }),
     );
-
-    return { items, quota: out.quota, quotaUsed: out.quotaUsed, errs: out.errs, ai: out.ai };
+    return { items, quota: out.quota, quotaUsed: out.quotaUsed, errs: out.errs, ai: out.ai, pending: out.pending };
   }
 
   /** 封面优先级：bgm.common → bgm.large → anilist.large */
@@ -101,6 +126,15 @@ class Svc {
       return await chrome.tabs.captureVisibleTab(win, opts);
     } catch (e) {
       throw new AppErr(ErrCode.CAPTURE, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /** 安装/更新后向已打开的 X 标签页注入新脚本，免去手动刷新页面 */
+  static async reinject(): Promise<void> {
+    const tabs = await chrome.tabs.query({ url: Dom.MATCHES });
+    for (const t of tabs) {
+      if (t.id == null) continue;
+      await chrome.scripting.executeScript({ target: { tabId: t.id }, files: [Page.CONTENT_JS] }).catch(() => {});
     }
   }
 
