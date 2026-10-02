@@ -35,6 +35,8 @@ class Svc {
         return Store.list();
       case Msg.CFG_GET:
         return Store.cfg();
+      case Msg.CLIP:
+        return Svc.clip(req.url);
       case Msg.OPEN_COLLECTION:
         await Svc.open();
         return null;
@@ -82,6 +84,13 @@ class Svc {
     } catch {
       return url;
     }
+  }
+
+  /** trace.moe 预览片段 → dataURL（X 的 CSP 只允许 media-src data:/blob: 与 twimg） */
+  static async clip(url: string): Promise<string> {
+    const d = await Img.data(Svc.shot(url));
+    if (!d) throw new AppErr(ErrCode.NETWORK, 'clip');
+    return d;
   }
 
   static async capture(sender: chrome.runtime.MessageSender): Promise<string> {

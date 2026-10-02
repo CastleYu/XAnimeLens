@@ -28,6 +28,7 @@ export enum Msg {
   FAV_LIST = 'favList',
   CFG_GET = 'cfgGet',
   OPEN_COLLECTION = 'openCollection',
+  CLIP = 'clip',
 }
 
 /** chrome.storage.local 键 */
@@ -159,6 +160,12 @@ export class CardDom {
   static readonly ON = 'xal-on';
   static readonly FOOT = 'xal-foot';
   static readonly OPEN = 'xal-open';
+  static readonly CMP = 'xal-cmp';
+  static readonly CMP_BTN = 'xal-cmp-btn';
+  static readonly CMP_COL = 'xal-cmp-col';
+  static readonly CMP_CAP = 'xal-cmp-cap';
+  static readonly CMP_MEDIA = 'xal-cmp-media';
+  static readonly CMP_HINT = 'xal-cmp-hint';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -216,5 +223,11 @@ export class Txt {
   static readonly FAVED = '★ 已收藏';
   static readonly LOW = '相似度低';
   static readonly STAR = '★ ';
+  static readonly CMP = '对比 ▾';
+  static readonly CMP_OPEN = '收起 ▴';
+  static readonly CMP_IN = '输入截图';
+  static readonly CMP_OUT = '匹配片段';
+  static readonly CMP_LOADING = '片段加载中…';
+  static readonly CMP_FAIL = '片段加载失败，可点“预览片段”在新标签页查看';
   static readonly MAG = 'M11 11l5.5 5.5M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0z';
 }

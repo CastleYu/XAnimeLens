@@ -546,3 +546,66 @@
     transform: rotate(360deg);
   }
 }
+
+/* --------------------------------------------------------------------------
+   Compare panel（输入截图 / 匹配片段）
+   -------------------------------------------------------------------------- */
+.xal-item {
+  flex-wrap: wrap;
+}
+
+.xal-cmp {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--xal-border);
+}
+
+.xal-cmp[hidden] {
+  display: none;
+}
+
+.xal-cmp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xal-cmp-cap {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--xal-text-muted, #8b949e);
+}
+
+.xal-cmp-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+  border-radius: 6px;
+  border: 1px solid var(--xal-border);
+  display: block;
+}
+
+.xal-cmp-hint {
+  margin: 0;
+  padding: 18px 8px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--xal-text-muted, #8b949e);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}
+
+button.xal-cmp-btn {
+  font: inherit;
+  cursor: pointer;
+}
+
+.xal-cmp-btn.xal-on {
+  color: var(--xal-accent, #ff6b9a);
+  border-color: var(--xal-accent, #ff6b9a);
+}

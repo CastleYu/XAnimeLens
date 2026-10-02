@@ -32,14 +32,14 @@ export class Card {
     Card.show(true);
   }
 
-  static async render(data: CardData, tweetUrl: string): Promise<void> {
+  static async render(data: CardData, tweetUrl: string, input = ''): Promise<void> {
     Card.build();
     if (!data.items.length) {
       Card.error(ErrText.NOT_FOUND, () => {});
       return;
     }
     const min = await Card.min();
-    Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl)));
+    Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl, input)));
     Card.quotaShow(data);
     Card.card!.setAttribute('data-state', CardState.OK);
     Card.show(true);
@@ -63,7 +63,7 @@ export class Card {
   }
 
   /** 单条结果 DOM（严格遵循 Temp/card-dom.md） */
-  static item(it: CardItem, min: number, tweetUrl: string): HTMLLIElement {
+  static item(it: CardItem, min: number, tweetUrl: string, input = ''): HTMLLIElement {
     const r = it.recog;
     const a = r.hit.anilist;
     const b = r.bgm;
@@ -104,7 +104,20 @@ export class Card {
     if (b) links.append(Card.link(Api.BGM_SITE + b.id, Txt.BGM));
     if (r.hit.video) links.append(Card.link(r.hit.video, Txt.CLIP));
     if (a.siteUrl) links.append(Card.link(a.siteUrl, Txt.ANILIST));
-    if (links.childElementCount) info.append(links);
+    const cmp = Card.mk('div', CardDom.CMP);
+    cmp.hidden = true;
+    const tog = Card.mk('button', `${CardDom.LINK} ${CardDom.CMP_BTN}`, Txt.CMP);
+    tog.type = 'button';
+    tog.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      cmp.hidden = !cmp.hidden;
+      tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
+      tog.classList.toggle(CardDom.ON, !cmp.hidden);
+      if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, r.hit.video, it.shot);
+    });
+    links.prepend(tog);
+    info.append(links);
     li.append(info);
 
     const fav = Card.mk('button', CardDom.FAV);
@@ -115,9 +128,46 @@ export class Card {
       e.preventDefault();
       void Card.toggle(it, fav, tweetUrl);
     });
-    li.append(fav);
+    li.append(fav, cmp);
 
     return li;
+  }
+
+  /** 展开对比：输入截图 + 匹配片段（片段首次展开时才经 background 拉取） */
+  static cmp(box: HTMLElement, input: string, clip: string, shot: string): void {
+    if (input) {
+      const img = Card.mk('img', CardDom.CMP_MEDIA);
+      img.src = input;
+      img.alt = '';
+      box.append(Card.col(Txt.CMP_IN, img));
+    }
+    const hint = Card.mk('p', CardDom.CMP_HINT, Txt.CMP_LOADING);
+    const col = Card.col(Txt.CMP_OUT, hint);
+    box.append(col);
+    if (!clip) {
+      hint.textContent = Txt.CMP_FAIL;
+      return;
+    }
+    void Bus.send<string>({ type: Msg.CLIP, url: clip }).then(
+      (src) => {
+        const v = Card.mk('video', CardDom.CMP_MEDIA);
+        v.muted = true;
+        v.loop = true;
+        v.autoplay = true;
+        v.controls = true;
+        v.playsInline = true;
+        if (shot) v.poster = shot;
+        v.src = src;
+        hint.replaceWith(v);
+      },
+      () => (hint.textContent = Txt.CMP_FAIL),
+    );
+  }
+
+  static col(cap: string, media: HTMLElement): HTMLElement {
+    const col = Card.mk('div', CardDom.CMP_COL);
+    col.append(Card.mk('span', CardDom.CMP_CAP, cap), media);
+    return col;
   }
 
   /** 集数 + 时间（集数空则只显示时间） */

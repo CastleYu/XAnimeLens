@@ -123,7 +123,8 @@ export type Req =
   | { type: Msg.FAV_HAS; key: string }
   | { type: Msg.FAV_LIST }
   | { type: Msg.CFG_GET }
-  | { type: Msg.OPEN_COLLECTION };
+  | { type: Msg.OPEN_COLLECTION }
+  | { type: Msg.CLIP; url: string }; // 返回 trace.moe 片段 dataURL
 
 export type Res<T> = { ok: true; data: T } | { ok: false; err: Err };
 

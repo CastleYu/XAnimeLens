@@ -80,7 +80,7 @@ export class Inject {
       Card.loading();
       const img = await Capture.frame(video);
       const data = await Bus.send<CardData>({ type: Msg.RECOGNIZE, img });
-      await Card.render(data, Inject.tweetUrl(el));
+      await Card.render(data, Inject.tweetUrl(el), img);
     } catch (e) {
       Card.error(ErrText.of(e), () => void Inject.run(el, btn));
     } finally {

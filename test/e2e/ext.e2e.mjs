@@ -71,6 +71,19 @@ class E2e {
     const imgs = await p.locator('.xal-cover').first().getAttribute('src');
     console.log(`[${tag}] ok: ${title} ${sim} cover=${imgs ? imgs.slice(0, 22) : 'none'}`);
 
+    await p.locator('.xal-cmp-btn').first().click();
+    await p.waitForFunction(
+      () => {
+        const v = document.querySelector('#xal-host').shadowRoot.querySelector('.xal-cmp video');
+        return v && v.readyState >= 2 && v.currentTime > 0;
+      },
+      null,
+      { timeout: 30000 },
+    );
+    const inSrc = await p.locator('.xal-cmp img.xal-cmp-media').first().getAttribute('src');
+    await p.screenshot({ path: `${out}/compare-${tag}.png` });
+    console.log(`[${tag}] compare: input=${inSrc ? inSrc.slice(0, 22) : 'none'}, clip playing`);
+
     await p.locator('.xal-fav').first().click();
     await p.waitForFunction(() =>
       document.querySelector('#xal-host').shadowRoot.querySelector('.xal-fav.xal-on'),
