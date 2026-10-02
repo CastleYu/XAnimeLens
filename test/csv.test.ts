@@ -14,6 +14,8 @@ const F = (over: Partial<Fav> = {}): Fav => ({
   similarity: 0.9,
   kind: '',
   genres: [],
+  srcs: ['tracemoe'],
+  chars: [],
   tweetUrl: '',
   savedAt: '2024-01-01T00:00:00.000Z',
   note: '',

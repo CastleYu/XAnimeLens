@@ -48,7 +48,7 @@ export class Card {
 
   /** 收藏 / 取消收藏 */
   static async toggle(item: CardItem, btn: HTMLButtonElement, tweetUrl: string): Promise<void> {
-    const key = String(item.recog.hit.anilist.id);
+    const key = String(item.recog.hit!.anilist.id);
     try {
       if (item.fav) {
         await Bus.send({ type: Msg.FAV_DEL, key });
@@ -66,13 +66,13 @@ export class Card {
   /** 单条结果 DOM（严格遵循 Temp/card-dom.md） */
   static item(it: CardItem, min: number, tweetUrl: string, input = ''): HTMLLIElement {
     const r = it.recog;
-    const a = r.hit.anilist;
+    const a = r.hit!.anilist;
     const b = r.bgm;
     const native = b?.name || a.title.native || '';
     const title = b?.name_cn || a.title.chinese || native || a.title.romaji || '';
 
     const li = Card.mk('li', CardDom.ITEM);
-    if (r.hit.similarity < min) li.classList.add(CardDom.LOW);
+    if (r.hit!.similarity < min) li.classList.add(CardDom.LOW);
 
     if (it.cover) {
       const img = Card.mk('img', CardDom.COVER);
@@ -87,8 +87,8 @@ export class Card {
     if (native) info.append(Card.mk('p', CardDom.NATIVE, native));
 
     const meta = Card.mk('p', CardDom.META);
-    meta.append(Card.mk('span', CardDom.EP, Card.ep(r.hit.episode, r.hit.at ?? r.hit.from)));
-    meta.append(Card.mk('span', CardDom.SIM, (r.hit.similarity * 100).toFixed(1) + '%'));
+    meta.append(Card.mk('span', CardDom.EP, Card.ep(r.hit!.episode, r.hit!.at ?? r.hit!.from)));
+    meta.append(Card.mk('span', CardDom.SIM, (r.hit!.similarity * 100).toFixed(1) + '%'));
     const score = b?.rating?.score;
     if (score) meta.append(Card.mk('span', CardDom.SCORE, Txt.STAR + score));
     info.append(meta);
@@ -104,7 +104,7 @@ export class Card {
 
     const links = Card.mk('div', CardDom.LINKS);
     if (b) links.append(Card.link(Api.BGM_SITE + b.id, Txt.BGM));
-    if (r.hit.video) links.append(Card.link(r.hit.video, Txt.CLIP));
+    if (r.hit!.video) links.append(Card.link(r.hit!.video, Txt.CLIP));
     if (a.siteUrl) links.append(Card.link(a.siteUrl, Txt.ANILIST));
     const cmp = Card.mk('div', CardDom.CMP);
     cmp.hidden = true;
@@ -116,7 +116,7 @@ export class Card {
       cmp.hidden = !cmp.hidden;
       tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
       tog.classList.toggle(CardDom.ON, !cmp.hidden);
-      if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, r.hit.video, it.shot);
+      if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, r.hit!.video, it.shot);
       if (!cmp.hidden) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     });
     links.prepend(tog);

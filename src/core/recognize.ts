@@ -1,6 +1,6 @@
 import { Bangumi } from '../api/bangumi';
 import { TraceMoe } from '../api/tracemoe';
-import { Def, RecogDef } from '../shared/consts';
+import { Def, RecogDef, Src } from '../shared/consts';
 import { Matcher } from './match';
 import type { BgmSubject, Cfg, Recog, RecogResult, TmAnilist, TmHit } from '../shared/types';
 
@@ -17,9 +17,9 @@ export class Recognizer {
 
     const items: Recog[] = [];
     for (const hit of hits) {
-      items.push({ hit, bgm: await Recognizer.bgm(hit.anilist, cfg.bgmToken) });
+      items.push({ hit, bgm: await Recognizer.bgm(hit.anilist, cfg.bgmToken), srcs: [Src.TM], chars: [], work: '', unsure: false });
     }
-    return { items, quota: tm.quota, quotaUsed: tm.quotaUsed };
+    return { items, quota: tm.quota, quotaUsed: tm.quotaUsed, errs: [] };
   }
 
   /** 按 AniList ID 去重（保留高相似度），再按相似度降序 */

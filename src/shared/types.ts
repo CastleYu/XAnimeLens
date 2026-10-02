@@ -1,4 +1,4 @@
-import type { ErrCode, Msg } from './consts';
+import type { ErrCode, Msg, Src } from './consts';
 
 /** trace.moe 原始结果（只列用到的字段） */
 export interface TmTitle {
@@ -96,15 +96,47 @@ export interface Meta {
 }
 
 /** 一条识别结果：trace.moe 命中 + 匹配到的 Bangumi 条目 */
+/** AnimeTrace 原始结果 */
+export interface AtChar {
+  work: string;
+  character: string;
+}
+
+export interface AtBox {
+  box: number[];
+  not_confident: boolean;
+  character: AtChar[];
+}
+
+export interface AtResp {
+  code: number;
+  ai?: boolean;
+  trace_id?: string;
+  data?: AtBox[];
+}
+
+/** 一条识别结果（按作品合并多个来源） */
 export interface Recog {
-  hit: TmHit;
+  hit: TmHit | null; // trace.moe 命中；仅 AnimeTrace 识别时为 null
   bgm: BgmSubject | null;
+  srcs: Src[]; // 给出该作品的来源
+  chars: string[]; // AnimeTrace 识别出的角色名
+  work: string; // AnimeTrace 给出的作品名（无 hit 时作标题兜底）
+  unsure: boolean; // AnimeTrace 置信度低
+}
+
+export interface SrcErr {
+  src: Src;
+  code: ErrCode;
+  msg: string;
 }
 
 export interface RecogResult {
   items: Recog[];
   quota?: number;
   quotaUsed?: number;
+  errs: SrcErr[]; // 失败但不影响整体的来源
+  ai?: boolean; // AnimeTrace 判定为 AI 生成图
 }
 
 /** 收藏集条目 */
@@ -123,6 +155,8 @@ export interface Fav {
   note: string;
   kind: string; // 作品形式，旧数据为空串
   genres: string[]; // 类型标签，旧数据为空数组
+  srcs: string[]; // 识别来源，旧数据默认 [Src.TM]
+  chars: string[]; // 角色名，旧数据为空数组
 }
 
 export interface FavExport {
@@ -136,6 +170,7 @@ export interface Cfg {
   tmKey: string;
   minSim: number;
   bgmToken: string;
+  at: boolean; // 是否启用 AnimeTrace
 }
 
 export interface Err {
@@ -170,4 +205,6 @@ export interface CardData {
   items: CardItem[];
   quota?: number;
   quotaUsed?: number;
+  errs: SrcErr[];
+  ai?: boolean;
 }

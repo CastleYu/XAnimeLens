@@ -3,7 +3,7 @@ import { ErrCode } from '../src/shared/consts';
 import { Recognizer } from '../src/core/recognize';
 import type { BgmSubject, Cfg, TmHit } from '../src/shared/types';
 
-const cfg: Cfg = { tmKey: '', minSim: 0.9, bgmToken: '' };
+const cfg: Cfg = { tmKey: '', minSim: 0.9, bgmToken: '', at: false };
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), { status: 200, ...init });
@@ -46,7 +46,7 @@ describe('Recognizer.run', () => {
     const out = await Recognizer.run(img(), cfg);
 
     expect(out.items).toHaveLength(1);
-    expect(out.items[0].hit.anilist.id).toBe(1);
+    expect(out.items[0].hit!.anilist.id).toBe(1);
     expect(out.items[0].bgm?.id).toBe(101);
     expect(out.quota).toBe(7);
     expect(out.quotaUsed).toBe(3);
@@ -62,7 +62,7 @@ describe('Recognizer.run', () => {
     const out = await Recognizer.run(img(), cfg);
 
     expect(out.items).toHaveLength(1);
-    expect(out.items[0].hit.similarity).toBe(0.6);
+    expect(out.items[0].hit!.similarity).toBe(0.6);
   });
 
   it('按 AniList ID 去重保留高相似度并取 TOP_N', async () => {
@@ -74,8 +74,8 @@ describe('Recognizer.run', () => {
 
     const out = await Recognizer.run(img(), cfg);
 
-    expect(out.items.map((i) => i.hit.anilist.id)).toEqual([1, 2]);
-    expect(out.items[0].hit.similarity).toBe(0.99);
+    expect(out.items.map((i) => i.hit!.anilist.id)).toEqual([1, 2]);
+    expect(out.items[0].hit!.similarity).toBe(0.99);
   });
 
   it('Bangumi 异常被吞掉，bgm 置 null，trace.moe 结果仍返回', async () => {

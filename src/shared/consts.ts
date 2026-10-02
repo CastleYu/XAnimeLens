@@ -11,6 +11,30 @@ export class Api {
   static readonly BGM_ANIME_TYPE = 2;
   static readonly BGM_LIMIT = 10;
   static readonly UA = 'xanimelens/0.1 (https://github.com/)';
+  static readonly AT_SEARCH = 'https://api.animetrace.com/v1/search';
+}
+
+/** 识别来源 */
+export enum Src {
+  TM = 'tracemoe',
+  AT = 'animetrace',
+}
+
+/** AnimeTrace 请求参数与状态码（https://www.animetrace.com/api-docs） */
+export class AtDef {
+  static readonly FILE = 'file';
+  static readonly MULTI = 'is_multi';
+  static readonly AI = 'ai_detect';
+  static readonly ON = '1';
+  static readonly OFF = '0';
+  static readonly OK = [0, 17720];
+  static readonly QUOTA = [17702, 17728, 17731];
+}
+
+/** 收藏主键前缀：无 AniList ID 的条目（仅 AnimeTrace 识别） */
+export class FavKey {
+  static readonly BGM = 'bgm-';
+  static readonly WORK = 'at-';
 }
 
 export class TmParam {

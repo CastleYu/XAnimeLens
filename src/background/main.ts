@@ -54,13 +54,13 @@ class Svc {
       out.items.map(async (recog: Recog): Promise<CardItem> => {
         const [cover, shot] = await Promise.all([
           Img.data(Svc.cover(recog)),
-          Img.data(Svc.shot(recog.hit.image)),
+          Img.data(Svc.shot(recog.hit?.image ?? '')),
         ]);
-        return { recog, cover, shot, fav: await Store.has(String(recog.hit.anilist.id)) };
+        return { recog, cover, shot, fav: await Store.has(Store.key(recog)) };
       }),
     );
 
-    return { items, quota: out.quota, quotaUsed: out.quotaUsed };
+    return { items, quota: out.quota, quotaUsed: out.quotaUsed, errs: out.errs, ai: out.ai };
   }
 
   /** 封面优先级：bgm.common → bgm.large → anilist.large */
@@ -69,7 +69,7 @@ class Svc {
     return (
       b?.images?.common ||
       b?.images?.large ||
-      r.hit.anilist.coverImage?.large ||
+      r.hit?.anilist.coverImage?.large ||
       ''
     );
   }

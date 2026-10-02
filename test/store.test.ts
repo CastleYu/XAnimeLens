@@ -40,6 +40,8 @@ const F = (key: string, savedAt: string, title = key): Fav => ({
   similarity: 0.9,
   kind: '',
   genres: [],
+  srcs: ['tracemoe'],
+  chars: [],
   tweetUrl: '',
   savedAt,
   note: '',
@@ -82,7 +84,7 @@ describe('Store 基本操作', () => {
 
 describe('Store 配置', () => {
   it('cfg 默认值补全', async () => {
-    expect(await Store.cfg()).toEqual({ tmKey: '', minSim: Def.MIN_SIM, bgmToken: '' });
+    expect(await Store.cfg()).toEqual({ tmKey: '', minSim: Def.MIN_SIM, bgmToken: '', at: true });
   });
 
   it('setCfg 部分更新并保留其余默认', async () => {
@@ -158,6 +160,10 @@ describe('Store.toFav', () => {
         image: '',
       },
       bgm: { id: 7, name: 'bgm native', name_cn: '中文名', images: { common: 'bgm cov' } },
+      srcs: ['tracemoe'],
+      chars: [],
+      work: '',
+      unsure: false,
     } as unknown as Recog;
     const f = Store.toFav(r, 'https://x.com/a/status/1');
     expect(f.key).toBe('42');
@@ -187,6 +193,10 @@ describe('Store.toFav', () => {
         image: '',
       },
       bgm: null,
+      srcs: ['tracemoe'],
+      chars: [],
+      work: '',
+      unsure: false,
     } as unknown as Recog;
     const f = Store.toFav(r, '');
     expect(f.title).toBe('JP');

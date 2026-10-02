@@ -1,4 +1,4 @@
-import { Def, ErrCode, Export, Key } from '../shared/consts';
+import { Def, ErrCode, Export, FavKey, Key, Src } from '../shared/consts';
 import { AppErr } from '../shared/err';
 import { Metas } from './meta';
 import type { Cfg, Fav, FavExport, Recog } from '../shared/types';
@@ -62,6 +62,7 @@ export class Store {
       tmKey: typeof v.tmKey === 'string' ? v.tmKey : '',
       minSim: typeof v.minSim === 'number' ? v.minSim : Def.MIN_SIM,
       bgmToken: typeof v.bgmToken === 'string' ? v.bgmToken : '',
+      at: typeof v.at === 'boolean' ? v.at : true,
     };
   }
 
@@ -117,28 +118,38 @@ export class Store {
     return n;
   }
 
+  /** 收藏主键：有 AniList ID 用 ID（兼容旧数据），否则用 Bangumi ID 或作品名 */
+  static key(r: Recog): string {
+    if (r.hit) return String(r.hit.anilist.id);
+    if (r.bgm) return FavKey.BGM + r.bgm.id;
+    return FavKey.WORK + r.work;
+  }
+
   static toFav(r: Recog, tweetUrl: string): Fav {
-    const a = r.hit.anilist;
+    const a = r.hit?.anilist;
     const b = r.bgm;
-    const native = b?.name || a.title.native || '';
-    const title = b?.name_cn || a.title.chinese || native || a.title.romaji || a.title.english || '';
-    const cover = b?.images?.common || b?.images?.large || a.coverImage?.large || '';
+    const native = b?.name || a?.title.native || r.work || '';
+    const title =
+      b?.name_cn || a?.title.chinese || native || a?.title.romaji || a?.title.english || r.work || '';
+    const cover = b?.images?.common || b?.images?.large || a?.coverImage?.large || '';
     const m = Metas.of(r);
     return {
-      key: String(a.id),
-      anilistId: a.id,
+      key: Store.key(r),
+      anilistId: a?.id ?? 0,
       bgmId: b?.id ?? null,
       title,
       native,
       cover,
-      episode: r.hit.episode == null ? '' : String(r.hit.episode),
-      at: r.hit.at ?? r.hit.from,
-      similarity: r.hit.similarity,
+      episode: r.hit?.episode == null ? '' : String(r.hit.episode),
+      at: r.hit ? (r.hit.at ?? r.hit.from) : 0,
+      similarity: r.hit?.similarity ?? 0,
       tweetUrl,
       savedAt: new Date().toISOString(),
       note: '',
       kind: m.kind,
       genres: m.genres,
+      srcs: [...r.srcs],
+      chars: [...r.chars],
     };
   }
 
@@ -162,7 +173,14 @@ export class Store {
       savedAt: typeof o.savedAt === 'string' && o.savedAt ? o.savedAt : new Date().toISOString(),
       note: typeof o.note === 'string' ? o.note : '',
       kind: typeof o.kind === 'string' ? o.kind : '',
-      genres: Array.isArray(o.genres) ? o.genres.filter((g): g is string => typeof g === 'string') : [],
+      genres: Store.strs(o.genres),
+      // 0.2.0 及之前的收藏都来自 trace.moe
+      srcs: Array.isArray(o.srcs) ? Store.strs(o.srcs) : [Src.TM],
+      chars: Store.strs(o.chars),
     };
+  }
+
+  private static strs(v: unknown): string[] {
+    return Array.isArray(v) ? v.filter((g): g is string => typeof g === 'string') : [];
   }
 }

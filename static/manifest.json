@@ -10,7 +10,8 @@
     "https://api.trace.moe/*",
     "https://api.bgm.tv/*",
     "https://lain.bgm.tv/*",
-    "https://s4.anilist.co/*"
+    "https://s4.anilist.co/*",
+    "https://api.animetrace.com/*"
   ],
   "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [

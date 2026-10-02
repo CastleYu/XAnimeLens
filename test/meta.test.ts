@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Metas } from '../src/core/meta';
+import { Src } from '../src/shared/consts';
 import type { BgmSubject, Recog, TmAnilist, TmHit } from '../src/shared/types';
 
 // 实测数据：《请问您今天要来点兔子吗？？》（AniList 21034 / Bangumi 123568）
@@ -35,7 +36,14 @@ const B: BgmSubject = {
     { key: '动画制作', value: 'WHITE FOX' },
   ],
 };
-const R = (a: TmAnilist, b: BgmSubject | null): Recog => ({ hit: { anilist: a } as TmHit, bgm: b });
+const R = (a: TmAnilist, b: BgmSubject | null): Recog => ({
+  hit: { anilist: a } as TmHit,
+  bgm: b,
+  srcs: [Src.TM],
+  chars: [],
+  work: '',
+  unsure: false,
+});
 
 describe('Metas.of', () => {
   it('合并 AniList 与 Bangumi', () => {

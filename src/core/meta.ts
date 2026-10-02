@@ -3,8 +3,11 @@ import type { BgmInfo, BgmSubject, Meta, Recog, TmAnilist } from '../shared/type
 
 /** 合并 AniList 与 Bangumi 的作品信息；Bangumi 的中文数据优先，AniList 兜底。 */
 export class Metas {
+  /** 无 trace.moe 命中时的空 AniList 条目，统一走 Bangumi 数据 */
+  static readonly NONE: TmAnilist = { id: 0, title: {}, isAdult: false };
+
   static of(r: Recog): Meta {
-    const a = r.hit.anilist;
+    const a = r.hit?.anilist ?? Metas.NONE;
     const b = r.bgm;
     const src = MetaMap.SOURCE[a.source ?? ''] ?? '';
     return {
