@@ -256,6 +256,32 @@ body {
   box-shadow: 0 0 0 2px var(--col-accent-subtle);
 }
 
+#col-guide {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--col-border);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--col-text-muted);
+}
+
+#col-guide p {
+  margin: 0;
+}
+
+#col-guide ol {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+#col-guide b {
+  color: var(--col-text);
+}
+
+#col-guide a {
+  color: var(--col-accent);
+}
+
 #col-save {
   height: 32px;
   padding: 0 18px;

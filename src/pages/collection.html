@@ -24,6 +24,23 @@
         <label>Bangumi Token <input id="col-bgmtoken" type="password" autocomplete="off" /></label>
         <label>启用 AnimeTrace 角色识别 <input id="col-at" type="checkbox" /></label>
         <button id="col-save" type="button">保存</button>
+        <div id="col-guide">
+          <p>两项都可留空；填写后识别更稳定。</p>
+          <ol>
+            <li>
+              <b>Bangumi Token</b>（作品与角色信息查询，含 R18 条目；不填也能用）：
+              没有账号先 <a href="https://bgm.tv/signup" target="_blank" rel="noreferrer noopener">注册 Bangumi</a>，
+              登录后打开 <a href="https://next.bgm.tv/demo/access-token" target="_blank" rel="noreferrer noopener">个人令牌页</a>
+              →「创建个人令牌」→ 名称随意、有效期选最长 → 复制生成的令牌粘贴到上面，点「保存」。
+            </li>
+            <li>
+              <b>trace.moe API Key</b>（提高每月识别额度）：
+              打开 <a href="https://trace.moe/account" target="_blank" rel="noreferrer noopener">trace.moe 账户页</a>
+              按页面说明获取 Key（通常需赞助），复制到上面并保存。
+            </li>
+          </ol>
+          <p>令牌只保存在本机浏览器（chrome.storage.local），不会上传到其他地方。</p>
+        </div>
       </details>
 
       <main id="col-grid"></main>
