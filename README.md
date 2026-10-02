@@ -1,6 +1,13 @@
 # XAnimeLens
 
-Chrome 扩展：在 X（x.com）的视频上点「识别」，用 [trace.moe](https://trace.moe) 识别动漫出处，再用 [Bangumi API](https://bangumi.github.io/api/) 补全中文名、评分与条目链接；结果以浮动卡片显示，可收藏到本地并导出。
+Chrome 扩展：在 X（x.com）的视频上点「识别」，并行调用两个独立来源识别动漫出处，再用 [Bangumi API](https://bangumi.github.io/api/) 补全中文名、评分、形式、类型与条目链接；结果以浮动卡片显示，可收藏到本地并导出。
+
+| 来源 | 识别方式 | 给出 |
+|---|---|---|
+| [trace.moe](https://trace.moe) | 以画面帧检索动画数据库 | 作品、集数、时间点、相似度、匹配片段 |
+| [AnimeTrace](https://www.animetrace.com) | 识别画面中的角色（独立模型） | 作品（系列级）、角色名 |
+
+两个来源指向同一作品时合并为一条并标注「多源一致」；仅 AnimeTrace 识别出的作品单独成条（标注「角色识别」）。任一来源失败不影响另一来源，卡片底部会提示。AnimeTrace 可在收藏集「设置」中关闭。
 
 ## 安装
 
