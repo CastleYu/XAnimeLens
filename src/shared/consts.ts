@@ -346,3 +346,18 @@ export class MetaTxt {
   static readonly ADULT = 'R18';
   static readonly JOIN = ' / ';
 }
+
+/** 来源与角色相关文案（卡片与收藏集共用） */
+export class SrcTxt {
+  static readonly NAME: Record<string, string> = {
+    [Src.TM]: 'trace.moe',
+    [Src.AT]: 'AnimeTrace',
+  };
+  static readonly MULTI = '多源一致';
+  static readonly CHARS = '角色：';
+  static readonly CHAR_SEP = '、';
+  static readonly ROLE_ONLY = '角色识别';
+  static readonly UNSURE = '置信度低';
+  static readonly AI = '疑似 AI 生成图';
+  static readonly FAILED = '未返回';
+}

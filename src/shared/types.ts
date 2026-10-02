@@ -208,3 +208,10 @@ export interface CardData {
   errs: SrcErr[];
   ai?: boolean;
 }
+
+/** AnimeTrace 结果按作品聚合 */
+export interface AtWork {
+  work: string;
+  chars: string[];
+  unsure: boolean; // 该作品的所有检测框都置信度低
+}
