@@ -208,6 +208,22 @@ describe('Store.toFav', () => {
   });
 });
 
+describe('Store.patch', () => {
+  it('合并指定字段并保留其余', async () => {
+    await Store.add(F('1', '2024-01-01T00:00:00.000Z'));
+    await Store.patch('1', { kind: 'TV动画', genres: ['日常'] });
+    const [f] = await Store.list();
+    expect(f.kind).toBe('TV动画');
+    expect(f.genres).toEqual(['日常']);
+    expect(f.title).toBe('1');
+  });
+
+  it('key 不存在时忽略', async () => {
+    await Store.patch('9', { kind: 'TV动画' });
+    expect(await Store.list()).toEqual([]);
+  });
+});
+
 describe('Store 兼容旧数据', () => {
   it('旧版收藏缺少 kind/genres 时补默认值', async () => {
     const c = mem();

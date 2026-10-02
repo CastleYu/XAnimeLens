@@ -183,4 +183,12 @@ export class Store {
   private static strs(v: unknown): string[] {
     return Array.isArray(v) ? v.filter((g): g is string => typeof g === 'string') : [];
   }
+
+  /** 局部更新条目字段；条目不存在则忽略 */
+  static async patch(key: string, p: Partial<Fav>): Promise<void> {
+    const m = await Store.all();
+    if (!Object.prototype.hasOwnProperty.call(m, key)) return;
+    m[key] = { ...m[key], ...p };
+    await Store.put(m);
+  }
 }
