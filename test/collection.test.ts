@@ -9,7 +9,7 @@ const F = (key: string, p: Partial<Fav> = {}): Fav => ({
   bgmId: null,
   title: key,
   native: '',
-  cover: '',
+  cover: 'c',
   episode: '',
   at: 0,
   similarity: 0.9,
@@ -43,5 +43,9 @@ describe('Backfill.pick', () => {
   it('默认上限为 BackfillDef.MAX', () => {
     const items = Array.from({ length: 25 }, (_, i) => F(String(i), { bgmId: i + 1 }));
     expect(Backfill.pick(items)).toHaveLength(BackfillDef.MAX);
+  });
+  it('已有标签但缺封面的条目也补全', () => {
+    const out = Backfill.pick([F('1', { bgmId: 10, kind: 'TV动画', cover: '' }), F('2', { bgmId: 20, kind: 'TV动画' })]);
+    expect(out.map((f) => f.key)).toEqual(['1']);
   });
 });

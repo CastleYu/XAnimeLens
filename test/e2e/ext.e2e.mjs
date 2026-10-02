@@ -70,6 +70,10 @@ class E2e {
     const sim = await p.locator('.xal-sim').first().textContent();
     const imgs = await p.locator('.xal-cover').first().getAttribute('src');
     console.log(`[${tag}] ok: ${title} ${sim} cover=${imgs ? imgs.slice(0, 22) : 'none'}`);
+    const srcs = await p.locator('.xal-item').first().locator('.xal-src').allTextContents();
+    const chars = await p.locator('.xal-chars').first().textContent().catch(() => '');
+    console.log(`[${tag}] sources: ${srcs.join(' | ')}  ${chars}`);
+    if (!srcs.includes('AnimeTrace')) throw new Error(`[${tag}] AnimeTrace 未合并到首条结果`);
 
     await p.locator('.xal-cmp-btn').first().click();
     await p.waitForFunction(
@@ -89,9 +93,20 @@ class E2e {
       document.querySelector('#xal-host').shadowRoot.querySelector('.xal-fav.xal-on'),
     );
 
+    // 0.2.0 之前格式的旧收藏：无 kind/genres/srcs/chars，打开收藏集后应自动补全标签
+    await sw.evaluate(async () => {
+      const r = await chrome.storage.local.get('favs');
+      const favs = r.favs ?? {};
+      favs['legacy'] = { key: 'legacy', anilistId: 1, bgmId: 1424, title: '旧收藏', native: '', cover: '',
+        episode: '3', at: 60, similarity: 0.95, tweetUrl: '', savedAt: '2020-01-01T00:00:00.000Z', note: '' };
+      await chrome.storage.local.set({ favs });
+    });
     const col = await ctx.newPage();
     await col.goto(`chrome-extension://${id}/collection.html`);
     await col.locator('.col-card').first().waitFor();
+    const legacy = col.locator('.col-card', { hasText: '旧收藏' });
+    await legacy.locator('.col-kind').waitFor({ timeout: 20000 });
+    console.log(`[${tag}] legacy backfill: ${(await legacy.locator('.col-tags').textContent()).trim()} | src=${await legacy.locator('.col-src').textContent()}`);
     const n = await col.locator('.col-card').count();
     const tweet = await col.locator('.col-tweet').first().getAttribute('href');
     await col.screenshot({ path: `${out}/collection-${tag}.png`, fullPage: true });

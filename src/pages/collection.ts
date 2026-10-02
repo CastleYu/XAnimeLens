@@ -74,7 +74,8 @@ class View {
       try {
         const subj = await Bangumi.subject(f.bgmId, c.bgmToken);
         const m = Metas.of({ hit: null, bgm: subj, srcs: [], chars: [], work: '', unsure: false });
-        await Store.patch(f.key, { kind: m.kind, genres: m.genres });
+        const cover = f.cover || subj.images?.common || subj.images?.large || '';
+        await Store.patch(f.key, { kind: m.kind, genres: m.genres, cover });
       } catch {
         // 单条失败跳过
       }
@@ -206,7 +207,7 @@ class View {
   static cover(f: Fav): HTMLElement {
     const img = document.createElement('img');
     img.className = ColDom.COVER;
-    img.alt = f.title;
+    img.alt = f.cover ? f.title : ''; // 无封面时不显示替代文字，保留占位底色
     img.loading = 'lazy';
     img.referrerPolicy = 'no-referrer';
     if (f.cover) img.src = f.cover;
