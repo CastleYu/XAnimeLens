@@ -3,7 +3,7 @@ import { Bus } from './msg';
 import { Store } from '../core/store';
 import { Metas } from '../core/meta';
 import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, Txt } from '../shared/consts';
-import type { CardData, CardItem } from '../shared/types';
+import type { CardData, CardItem, CharInfo } from '../shared/types';
 
 /** 全局唯一浮动卡片（Shadow DOM）。 */
 export class Card {
@@ -19,6 +19,7 @@ export class Card {
     Card.build();
     Card.opened.clear();
     Card.clips.clear();
+    Card.charInfos.clear();
     Card.card!.setAttribute('data-state', CardState.LOADING);
     Card.show(true);
   }
@@ -112,7 +113,7 @@ export class Card {
     Card.srcs(info, r.srcs);
     // 标题区之外的内容放到下方整行（.xal-more），不再挤在封面右侧的窄列里
     const more = Card.mk('div', CardDom.MORE);
-    if (r.chars.length) more.append(Card.mk('p', CardDom.CHARS, SrcTxt.CHARS + r.chars.join(SrcTxt.CHAR_SEP)));
+    Card.chars(more, r);
     Card.meta(more, r);
 
     if (it.shot) {
@@ -165,6 +166,53 @@ export class Card {
     li.append(fav, more, cmp);
 
     return li;
+  }
+
+  /** 角色查询缓存：增量重绘时不重复请求 */
+  static charInfos = new Map<string, Promise<CharInfo | null>>();
+
+  /** 角色：先显示名字，再异步补头像、中文名与 Bangumi 角色页链接 */
+  static chars(box: HTMLElement, r: CardItem['recog']): void {
+    if (!r.chars.length) return;
+    const row = Card.mk('div', CardDom.CHARS);
+    row.append(Card.mk('span', CardDom.CHAR_SUB, SrcTxt.CHARS));
+    const subject = r.bgm?.id ?? null;
+    for (const name of r.chars) {
+      const chip = Card.mk('a', `${CardDom.CHAR} ${CardDom.CHAR_LOAD}`);
+      chip.target = '_blank';
+      chip.rel = 'noreferrer noopener';
+      const av = Card.mk('span', CardDom.CHAR_AV);
+      const nm = Card.mk('span', CardDom.CHAR_NAME, name);
+      chip.append(av, nm);
+      row.append(chip);
+
+      const key = `${subject ?? ''}:${name}`;
+      if (!Card.charInfos.has(key)) {
+        Card.charInfos.set(key, Bus.send<CharInfo | null>({ type: Msg.CHAR, name, subject }).catch(() => null));
+      }
+      void Card.charInfos.get(key)!.then((c) => {
+        chip.classList.remove(CardDom.CHAR_LOAD);
+        if (!c) {
+          av.remove(); // 未在 Bangumi 找到，只保留名字
+          return;
+        }
+        chip.href = c.url;
+        chip.title = Txt.CHAR_PAGE;
+        if (c.img) {
+          const img = Card.mk('img', CardDom.CHAR_AV);
+          img.src = c.img;
+          img.alt = '';
+          av.replaceWith(img);
+        } else {
+          av.remove();
+        }
+        if (c.cn && c.cn !== c.name) {
+          nm.textContent = c.cn;
+          nm.after(Card.mk('span', CardDom.CHAR_SUB, c.name));
+        }
+      });
+    }
+    box.append(row);
   }
 
   /** 来源标签；多于一个来源时加“多源一致” */

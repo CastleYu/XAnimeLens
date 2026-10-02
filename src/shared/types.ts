@@ -188,7 +188,8 @@ export type Req =
   | { type: Msg.FAV_LIST }
   | { type: Msg.CFG_GET }
   | { type: Msg.OPEN_COLLECTION }
-  | { type: Msg.CLIP; url: string }; // 返回 trace.moe 片段 dataURL
+  | { type: Msg.CLIP; url: string } // 返回 trace.moe 片段 dataURL
+  | { type: Msg.CHAR; name: string; subject: number | null }; // 返回 CharInfo | null
 
 export type Res<T> = { ok: true; data: T } | { ok: false; err: Err };
 
@@ -226,3 +227,21 @@ export interface PortReq {
 export type PortRes =
   | { type: PortMsg.PART | PortMsg.DONE; data: CardData }
   | { type: PortMsg.ERR; err: Err };
+
+/** Bangumi 角色（作品角色列表 / 搜索 / 详情共用字段） */
+export interface BgmChar {
+  id: number;
+  name: string;
+  relation?: string;
+  images?: BgmImages | null;
+  infobox?: BgmInfo[];
+}
+
+/** 卡片展示用的角色信息 */
+export interface CharInfo {
+  id: number;
+  name: string; // 原名
+  cn: string; // 简体中文名，可能为空
+  img: string; // 头像 dataURL，可能为空
+  url: string; // Bangumi 角色页
+}

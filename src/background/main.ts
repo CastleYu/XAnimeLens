@@ -1,9 +1,10 @@
 import { Img } from './img';
 import { Recognizer } from '../core/recognize';
+import { Chars } from '../core/chars';
 import { Store } from '../core/store';
-import { Dom, ErrCode, Msg, Page, PortDef, PortMsg } from '../shared/consts';
+import { Api, Dom, ErrCode, Msg, Page, PortDef, PortMsg } from '../shared/consts';
 import { AppErr } from '../shared/err';
-import type { CardData, CardItem, Err, PortReq, PortRes, Recog, RecogResult, Req } from '../shared/types';
+import type { CardData, CardItem, CharInfo, Err, PortReq, PortRes, Recog, RecogResult, Req } from '../shared/types';
 
 class Svc {
   static boot(): void {
@@ -40,6 +41,8 @@ class Svc {
         return Store.cfg();
       case Msg.CLIP:
         return Svc.clip(req.url);
+      case Msg.CHAR:
+        return Svc.char(req.name, req.subject);
       case Msg.OPEN_COLLECTION:
         await Svc.open();
         return null;
@@ -109,6 +112,28 @@ class Svc {
     } catch {
       return url;
     }
+  }
+
+  /** 角色查询缓存：同一作品同名角色只查一次 */
+  static charCache = new Map<string, Promise<CharInfo | null>>();
+
+  /** AnimeTrace 角色名 → Bangumi 角色（头像转 dataURL，X 的 CSP 禁止外链图片） */
+  static char(name: string, subject: number | null): Promise<CharInfo | null> {
+    const key = `${subject ?? ''}:${name}`;
+    if (!Svc.charCache.has(key)) {
+      const p = (async (): Promise<CharInfo | null> => {
+        const cfg = await Store.cfg();
+        const c = await Chars.find(name, subject, cfg.bgmToken);
+        if (!c) return null;
+        return { id: c.id, name: c.name, cn: Chars.cn(c), img: await Img.data(Chars.img(c)), url: Api.BGM_CHAR_SITE + c.id };
+      })();
+      // 失败不缓存，下次可重试
+      Svc.charCache.set(key, p.catch((e) => {
+        Svc.charCache.delete(key);
+        throw e;
+      }));
+    }
+    return Svc.charCache.get(key)!;
   }
 
   /** trace.moe 预览片段 → dataURL（X 的 CSP 只允许 media-src data:/blob: 与 twimg） */

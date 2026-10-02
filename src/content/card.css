@@ -806,3 +806,76 @@ button.xal-cmp-btn {
 .xal-item:has(.xal-cmp:not([hidden])) .xal-shot {
   display: none;
 }
+
+/* --------------------------------------------------------------------------
+   角色：头像 + 中文名 / 原名，点击打开 Bangumi 角色页
+   -------------------------------------------------------------------------- */
+.xal-chars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.xal-chars > .xal-char-sub {
+  font-size: 11px;
+  color: var(--xal-text-muted, #8b949e);
+}
+
+.xal-char {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 10px 3px 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--xal-border);
+  color: #e6edf3;
+  font-size: 12px;
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.xal-char[href]:hover {
+  border-color: var(--xal-accent, #ff6b9a);
+  background: rgba(255, 107, 154, 0.12);
+}
+
+.xal-char[href]::after {
+  content: '↗';
+  font-size: 10px;
+  color: var(--xal-text-muted, #8b949e);
+}
+
+.xal-char-av {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.xal-char-load .xal-char-av {
+  animation: xal-pulse 1.2s ease-in-out infinite;
+}
+
+.xal-char-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.xal-char .xal-char-sub {
+  font-size: 11px;
+  color: var(--xal-text-muted, #8b949e);
+  white-space: nowrap;
+}
+
+@keyframes xal-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}

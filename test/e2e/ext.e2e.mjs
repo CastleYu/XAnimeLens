@@ -80,7 +80,11 @@ class E2e {
     const imgs = await p.locator('.xal-cover').first().getAttribute('src');
     console.log(`[${tag}] ok: ${title} ${sim} cover=${imgs ? imgs.slice(0, 22) : 'none'}`);
     const srcs = await p.locator('.xal-item').first().locator('.xal-src').allTextContents();
-    const chars = await p.locator('.xal-chars').first().textContent().catch(() => '');
+    const chip = p.locator('.xal-char[href]').first();
+    await chip.waitFor({ timeout: 20000 });
+    await chip.locator('img').waitFor({ timeout: 20000 }).catch(() => {});
+    await p.locator('.xal-chars').first().screenshot({ path: `${out}/chars-${cors ? 'cors-video' : 'direct-src'}.png` });
+    const chars = `${await chip.textContent()} → ${await chip.getAttribute('href')} avatar=${(await chip.locator('img').count()) > 0}`;
     console.log(`[${tag}] sources: ${srcs.join(' | ')}  ${chars}`);
     if (!srcs.includes('AnimeTrace')) throw new Error(`[${tag}] AnimeTrace 未合并到首条结果`);
 

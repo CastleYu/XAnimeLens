@@ -8,6 +8,12 @@ export class Api {
   static readonly BGM_SEARCH = '/v0/search/subjects';
   static readonly BGM_SUBJECT = '/v0/subjects/';
   static readonly BGM_SITE = 'https://bgm.tv/subject/';
+  static readonly BGM_CHARS = '/characters'; // 拼在 /v0/subjects/{id} 之后
+  static readonly BGM_CHAR = '/v0/characters/';
+  static readonly BGM_CHAR_SEARCH = '/v0/search/characters';
+  static readonly BGM_CHAR_SITE = 'https://bgm.tv/character/';
+  static readonly BGM_CHAR_LIMIT = 5;
+  static readonly BGM_CN_KEY = '简体中文名';
   static readonly BGM_ANIME_TYPE = 2;
   static readonly BGM_LIMIT = 10;
   static readonly UA = 'xanimelens/0.1 (https://github.com/)';
@@ -64,6 +70,7 @@ export enum Msg {
   CFG_GET = 'cfgGet',
   OPEN_COLLECTION = 'openCollection',
   CLIP = 'clip',
+  CHAR = 'char',
 }
 
 /** chrome.storage.local 键 */
@@ -224,6 +231,11 @@ export class CardDom {
   static readonly NOTE = 'xal-note';
   static readonly MORE = 'xal-more';
   static readonly PENDING = 'xal-pending';
+  static readonly CHAR = 'xal-char';
+  static readonly CHAR_AV = 'xal-char-av';
+  static readonly CHAR_NAME = 'xal-char-name';
+  static readonly CHAR_SUB = 'xal-char-sub';
+  static readonly CHAR_LOAD = 'xal-char-load';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -289,7 +301,8 @@ export class Txt {
   static readonly EP = '第';
   static readonly EP_UNIT = '集';
   static readonly SEP = ' · ';
-  static readonly BGM = 'Bangumi';
+  static readonly BGM = '作品页';
+  static readonly CHAR_PAGE = 'Bangumi 角色页';
   static readonly CLIP = '预览片段';
   static readonly ANILIST = 'AniList';
   static readonly FAV = '☆ 收藏';
