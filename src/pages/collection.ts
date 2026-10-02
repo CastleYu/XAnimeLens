@@ -1,12 +1,16 @@
-import { Api, ColDom, Def, Export, Key } from '../shared/consts';
+import { Api, BackfillDef, ColDom, ColDom2, Def, Export, Key, SrcTxt } from '../shared/consts';
 import { Store } from '../core/store';
 import { Csv } from '../core/csv';
+import { Backfill } from '../core/backfill';
+import { Bangumi } from '../api/bangumi';
+import { Metas } from '../core/meta';
 import type { Fav } from '../shared/types';
 import css from './collection.css';
 
 class View {
   static items: Fav[] = [];
   static query = '';
+  static backfilled = false;
 
   static boot(): void {
     document.head.appendChild(View.style());
@@ -52,7 +56,30 @@ class View {
     View.el<HTMLInputElement>(ColDom.SET_TMKEY).value = c.tmKey;
     View.el<HTMLInputElement>(ColDom.SET_MINSIM).value = String(c.minSim);
     View.el<HTMLInputElement>(ColDom.SET_BGMTOKEN).value = c.bgmToken;
+    View.el<HTMLInputElement>(ColDom2.SET_AT).checked = c.at;
     View.render();
+    if (!View.backfilled) {
+      View.backfilled = true;
+      void View.backfill();
+    }
+  }
+
+  /** 旧收藏补全形式与类型标签；写入触发 onChanged 重绘 */
+  static async backfill(): Promise<void> {
+    const c = await Store.cfg();
+    const todo = Backfill.pick(View.items);
+    for (let i = 0; i < todo.length; i++) {
+      const f = todo[i];
+      if (f.bgmId == null) continue;
+      try {
+        const subj = await Bangumi.subject(f.bgmId, c.bgmToken);
+        const m = Metas.of({ hit: null, bgm: subj, srcs: [], chars: [], work: '', unsure: false });
+        await Store.patch(f.key, { kind: m.kind, genres: m.genres });
+      } catch {
+        // 单条失败跳过
+      }
+      if (i < todo.length - 1) await new Promise((r) => setTimeout(r, BackfillDef.GAP_MS));
+    }
   }
 
   static render(): void {
@@ -64,7 +91,9 @@ class View {
   }
 
   static hit(f: Fav, q: string): boolean {
-    return [f.title, f.native, f.note, f.kind, ...f.genres].some((s) => (s || '').toLowerCase().includes(q));
+    return [f.title, f.native, f.note, f.kind, ...f.genres, ...f.chars].some((s) =>
+      (s || '').toLowerCase().includes(q),
+    );
   }
 
   static empty(): HTMLElement {
@@ -105,15 +134,43 @@ class View {
       c.append(tags);
     }
 
+    if (f.srcs.length) {
+      const srcs = document.createElement('p');
+      srcs.className = ColDom2.SRC;
+      for (const s of f.srcs) {
+        const s1 = document.createElement('span');
+        s1.className = ColDom2.SRC_TAG;
+        s1.textContent = SrcTxt.NAME[s] ?? s;
+        srcs.append(s1);
+      }
+      if (f.srcs.length >= 2) {
+        const m = document.createElement('span');
+        m.className = ColDom2.SRC_MULTI;
+        m.textContent = SrcTxt.MULTI;
+        srcs.append(m);
+      }
+      c.append(srcs);
+    }
+
+    if (f.chars.length) {
+      const chars = document.createElement('p');
+      chars.className = ColDom2.CHARS;
+      chars.textContent = SrcTxt.CHARS + f.chars.join(SrcTxt.CHAR_SEP);
+      c.append(chars);
+    }
+
+    const roleOnly = f.episode === '' && f.at === 0 && f.similarity === 0;
     const ep = document.createElement('p');
     ep.className = ColDom.EPISODE;
-    ep.textContent = `第 ${f.episode || '-'} 集 ${View.clock(f.at)}`;
+    ep.textContent = roleOnly ? SrcTxt.ROLE_ONLY : `第 ${f.episode || '-'} 集 ${View.clock(f.at)}`;
     c.append(ep);
 
-    const sim = document.createElement('p');
-    sim.className = ColDom.SIM;
-    sim.textContent = `相似度 ${(f.similarity * 100).toFixed(1)}%`;
-    c.append(sim);
+    if (!roleOnly) {
+      const sim = document.createElement('p');
+      sim.className = ColDom.SIM;
+      sim.textContent = `相似度 ${(f.similarity * 100).toFixed(1)}%`;
+      c.append(sim);
+    }
 
     const time = document.createElement('p');
     time.className = ColDom.TIME;
@@ -206,6 +263,7 @@ class View {
       tmKey: View.el<HTMLInputElement>(ColDom.SET_TMKEY).value.trim(),
       bgmToken: View.el<HTMLInputElement>(ColDom.SET_BGMTOKEN).value.trim(),
       minSim: Math.min(1, Math.max(0.5, Number.isFinite(raw) ? raw : Def.MIN_SIM)),
+      at: View.el<HTMLInputElement>(ColDom2.SET_AT).checked,
     });
     alert('设置已保存');
   }

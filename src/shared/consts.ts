@@ -372,3 +372,18 @@ export class SrcTxt {
 export class AtFile {
   static readonly NAME = 'frame.jpg';
 }
+
+/** 收藏集新增 DOM 标识（来源 / 角色 / 设置） */
+export class ColDom2 {
+  static readonly SRC = 'col-src';
+  static readonly SRC_TAG = 'col-src-tag';
+  static readonly SRC_MULTI = 'col-src-multi';
+  static readonly CHARS = 'col-chars';
+  static readonly SET_AT = 'col-at';
+}
+
+/** 旧收藏补全参数 */
+export class BackfillDef {
+  static readonly MAX = 20;
+  static readonly GAP_MS = 300;
+}
