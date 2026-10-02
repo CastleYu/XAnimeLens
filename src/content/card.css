@@ -655,3 +655,43 @@ button.xal-cmp-btn {
   line-height: 1.45;
   color: var(--xal-text-muted, #8b949e);
 }
+
+/* --------------------------------------------------------------------------
+   多来源：来源标签 / 多源一致 / 角色 / 底部提示
+   -------------------------------------------------------------------------- */
+.xal-srcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.xal-src {
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 9999px;
+  color: #9ecbff;
+  background: rgba(56, 139, 253, 0.12);
+  border: 1px solid rgba(56, 139, 253, 0.35);
+}
+
+.xal-src.xal-multi {
+  color: #0f1115;
+  background: #3fb950;
+  border-color: #3fb950;
+  font-weight: 600;
+}
+
+.xal-chars {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  color: #e6edf3;
+}
+
+.xal-note {
+  list-style: none;
+  font-size: 11px;
+  color: var(--xal-text-muted, #8b949e);
+  padding: 2px 4px;
+}

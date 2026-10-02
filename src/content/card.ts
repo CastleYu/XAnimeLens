@@ -2,7 +2,7 @@ import css from './card.css';
 import { Bus } from './msg';
 import { Store } from '../core/store';
 import { Metas } from '../core/meta';
-import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, Txt } from '../shared/consts';
+import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, Txt } from '../shared/consts';
 import type { CardData, CardItem } from '../shared/types';
 
 /** 全局唯一浮动卡片（Shadow DOM）。 */
@@ -41,6 +41,7 @@ export class Card {
     }
     const min = await Card.min();
     Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl, input)));
+    Card.notes(data);
     Card.quotaShow(data);
     Card.card!.setAttribute('data-state', CardState.OK);
     Card.show(true);
@@ -48,7 +49,7 @@ export class Card {
 
   /** 收藏 / 取消收藏 */
   static async toggle(item: CardItem, btn: HTMLButtonElement, tweetUrl: string): Promise<void> {
-    const key = String(item.recog.hit!.anilist.id);
+    const key = Store.key(item.recog);
     try {
       if (item.fav) {
         await Bus.send({ type: Msg.FAV_DEL, key });
@@ -63,16 +64,17 @@ export class Card {
     }
   }
 
-  /** 单条结果 DOM（严格遵循 Temp/card-dom.md） */
+  /** 单条结果 DOM（结构见 Temp/card-dom.md；hit 为空表示仅 AnimeTrace 角色识别） */
   static item(it: CardItem, min: number, tweetUrl: string, input = ''): HTMLLIElement {
     const r = it.recog;
-    const a = r.hit!.anilist;
+    const h = r.hit;
+    const a = h?.anilist;
     const b = r.bgm;
-    const native = b?.name || a.title.native || '';
-    const title = b?.name_cn || a.title.chinese || native || a.title.romaji || '';
+    const native = b?.name || a?.title.native || r.work || '';
+    const title = b?.name_cn || a?.title.chinese || native || a?.title.romaji || r.work || '';
 
     const li = Card.mk('li', CardDom.ITEM);
-    if (r.hit!.similarity < min) li.classList.add(CardDom.LOW);
+    if (h && h.similarity < min) li.classList.add(CardDom.LOW);
 
     if (it.cover) {
       const img = Card.mk('img', CardDom.COVER);
@@ -84,14 +86,20 @@ export class Card {
 
     const info = Card.mk('div', CardDom.INFO);
     info.append(Card.mk('h3', CardDom.TITLE, title));
-    if (native) info.append(Card.mk('p', CardDom.NATIVE, native));
+    if (native && native !== title) info.append(Card.mk('p', CardDom.NATIVE, native));
 
     const meta = Card.mk('p', CardDom.META);
-    meta.append(Card.mk('span', CardDom.EP, Card.ep(r.hit!.episode, r.hit!.at ?? r.hit!.from)));
-    meta.append(Card.mk('span', CardDom.SIM, (r.hit!.similarity * 100).toFixed(1) + '%'));
+    if (h) {
+      meta.append(Card.mk('span', CardDom.EP, Card.ep(h.episode, h.at ?? h.from)));
+      meta.append(Card.mk('span', CardDom.SIM, (h.similarity * 100).toFixed(1) + '%'));
+    } else {
+      meta.append(Card.mk('span', CardDom.EP, r.unsure ? `${SrcTxt.ROLE_ONLY}${Txt.SEP}${SrcTxt.UNSURE}` : SrcTxt.ROLE_ONLY));
+    }
     const score = b?.rating?.score;
     if (score) meta.append(Card.mk('span', CardDom.SCORE, Txt.STAR + score));
     info.append(meta);
+    Card.srcs(info, r.srcs);
+    if (r.chars.length) info.append(Card.mk('p', CardDom.CHARS, SrcTxt.CHARS + r.chars.join(SrcTxt.CHAR_SEP)));
     Card.meta(info, r);
 
     if (it.shot) {
@@ -104,23 +112,26 @@ export class Card {
 
     const links = Card.mk('div', CardDom.LINKS);
     if (b) links.append(Card.link(Api.BGM_SITE + b.id, Txt.BGM));
-    if (r.hit!.video) links.append(Card.link(r.hit!.video, Txt.CLIP));
-    if (a.siteUrl) links.append(Card.link(a.siteUrl, Txt.ANILIST));
+    if (h?.video) links.append(Card.link(h.video, Txt.CLIP));
+    if (a?.siteUrl) links.append(Card.link(a.siteUrl, Txt.ANILIST));
+
     const cmp = Card.mk('div', CardDom.CMP);
     cmp.hidden = true;
-    const tog = Card.mk('button', `${CardDom.LINK} ${CardDom.CMP_BTN}`, Txt.CMP);
-    tog.type = 'button';
-    tog.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      cmp.hidden = !cmp.hidden;
-      tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
-      tog.classList.toggle(CardDom.ON, !cmp.hidden);
-      if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, r.hit!.video, it.shot);
-      if (!cmp.hidden) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
-    });
-    links.prepend(tog);
-    info.append(links);
+    if (input || h?.video) {
+      const tog = Card.mk('button', `${CardDom.LINK} ${CardDom.CMP_BTN}`, Txt.CMP);
+      tog.type = 'button';
+      tog.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        cmp.hidden = !cmp.hidden;
+        tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
+        tog.classList.toggle(CardDom.ON, !cmp.hidden);
+        if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, h?.video ?? '', it.shot);
+        if (!cmp.hidden) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+      });
+      links.prepend(tog);
+    }
+    if (links.childElementCount) info.append(links);
     li.append(info);
 
     const fav = Card.mk('button', CardDom.FAV);
@@ -134,6 +145,22 @@ export class Card {
     li.append(fav, cmp);
 
     return li;
+  }
+
+  /** 来源标签；多于一个来源时加“多源一致” */
+  static srcs(info: HTMLElement, srcs: string[]): void {
+    if (!srcs.length) return;
+    const row = Card.mk('div', CardDom.SRCS);
+    for (const s of srcs) row.append(Card.mk('span', CardDom.SRC, SrcTxt.NAME[s] ?? s));
+    if (srcs.length > 1) row.append(Card.mk('span', `${CardDom.SRC} ${CardDom.MULTI}`, SrcTxt.MULTI));
+    info.append(row);
+  }
+
+  /** 列表底部提示：未返回的来源、AI 生成图判定 */
+  static notes(data: CardData): void {
+    const lines = data.errs.map((e) => `${SrcTxt.NAME[e.src] ?? e.src} ${SrcTxt.FAILED}（${ErrText.MAP[e.code] ?? e.msg}）`);
+    if (data.ai) lines.push(SrcTxt.AI);
+    for (const t of lines) Card.list!.append(Card.mk('li', CardDom.NOTE, t));
   }
 
   /** 作品信息：形式 / 季度 / 集数 / 原作 / R18 + 类型标签 + 制作与导演 */
@@ -161,13 +188,10 @@ export class Card {
       img.alt = '';
       box.append(Card.col(Txt.CMP_IN, img));
     }
+    if (!clip) return; // 仅角色识别的结果没有匹配片段
     const hint = Card.mk('p', CardDom.CMP_HINT, Txt.CMP_LOADING);
     const col = Card.col(Txt.CMP_OUT, hint);
     box.append(col);
-    if (!clip) {
-      hint.textContent = Txt.CMP_FAIL;
-      return;
-    }
     void Bus.send<string>({ type: Msg.CLIP, url: clip }).then(
       (src) => {
         const v = Card.mk('video', CardDom.CMP_MEDIA);

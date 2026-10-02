@@ -145,6 +145,7 @@ export class Score {
   static readonly Y_FAR = -30;
   static readonly FAR_YEARS = 2;
   static readonly MIN = 40;
+  static readonly PREFIX_MIN = 4;
 }
 
 /** Recognizer 参数 */
@@ -198,6 +199,11 @@ export class CardDom {
   static readonly GENRE = 'xal-genre';
   static readonly ADULT = 'xal-adult';
   static readonly SUB = 'xal-sub';
+  static readonly SRCS = 'xal-srcs';
+  static readonly SRC = 'xal-src';
+  static readonly MULTI = 'xal-multi';
+  static readonly CHARS = 'xal-chars';
+  static readonly NOTE = 'xal-note';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
