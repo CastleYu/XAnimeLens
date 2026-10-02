@@ -12,6 +12,8 @@ const F = (over: Partial<Fav> = {}): Fav => ({
   episode: '1',
   at: 10,
   similarity: 0.9,
+  kind: '',
+  genres: [],
   tweetUrl: '',
   savedAt: '2024-01-01T00:00:00.000Z',
   note: '',
@@ -23,7 +25,7 @@ describe('Csv.of', () => {
     const out = Csv.of([]);
     expect(out.charCodeAt(0)).toBe(0xfeff);
     expect(out).toContain(
-      'key,anilistId,bgmId,title,native,episode,at,similarity,tweetUrl,savedAt,note,cover',
+      'key,anilistId,bgmId,title,native,episode,at,similarity,tweetUrl,savedAt,note,cover,kind,genres',
     );
   });
 
@@ -31,7 +33,7 @@ describe('Csv.of', () => {
     const out = Csv.of([F({ title: 'x', episode: '3', at: 12, similarity: 0.5 })]);
     const rows = out.split('\n');
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toBe('1,1,2,x,n,3,12,0.5,,2024-01-01T00:00:00.000Z,,');
+    expect(rows[1]).toBe('1,1,2,x,n,3,12,0.5,,2024-01-01T00:00:00.000Z,,,,');
   });
 
   it('转义逗号 / 引号 / 换行', () => {

@@ -609,3 +609,49 @@ button.xal-cmp-btn {
   color: var(--xal-accent, #ff6b9a);
   border-color: var(--xal-accent, #ff6b9a);
 }
+
+/* --------------------------------------------------------------------------
+   作品信息：形式/季度/集数/原作 标签 + 类型 + 制作导演
+   -------------------------------------------------------------------------- */
+.xal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.xal-tag {
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: var(--xal-text-muted, #8b949e);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--xal-border);
+  white-space: nowrap;
+}
+
+.xal-tag:first-child {
+  color: #ffffff;
+  background: rgba(255, 107, 154, 0.18);
+  border-color: rgba(255, 107, 154, 0.4);
+}
+
+.xal-genre {
+  color: #c9d1d9;
+  background: transparent;
+  border-style: dashed;
+}
+
+.xal-adult {
+  color: #ffffff;
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.xal-sub {
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--xal-text-muted, #8b949e);
+}

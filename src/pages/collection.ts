@@ -64,7 +64,7 @@ class View {
   }
 
   static hit(f: Fav, q: string): boolean {
-    return [f.title, f.native, f.note].some((s) => (s || '').toLowerCase().includes(q));
+    return [f.title, f.native, f.note, f.kind, ...f.genres].some((s) => (s || '').toLowerCase().includes(q));
   }
 
   static empty(): HTMLElement {
@@ -90,6 +90,19 @@ class View {
       nat.className = ColDom.NATIVE;
       nat.textContent = f.native;
       c.append(nat);
+    }
+
+    if (f.kind || f.genres.length) {
+      const tags = document.createElement('p');
+      tags.className = ColDom.TAGS;
+      for (const [cls, t] of [[ColDom.KIND, f.kind] as const, ...f.genres.map((g) => [ColDom.GENRE, g] as const)]) {
+        if (!t) continue;
+        const s = document.createElement('span');
+        s.className = cls;
+        s.textContent = t;
+        tags.append(s);
+      }
+      c.append(tags);
     }
 
     const ep = document.createElement('p');

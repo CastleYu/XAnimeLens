@@ -15,6 +15,8 @@ export class Csv {
     'savedAt',
     'note',
     'cover',
+    'kind',
+    'genres',
   ] as const;
 
   static of(items: Fav[]): string {
@@ -26,7 +28,7 @@ export class Csv {
   }
 
   private static esc(v: unknown): string {
-    const s = v == null ? '' : String(v);
+    const s = v == null ? '' : Array.isArray(v) ? v.join('|') : String(v);
     return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 }

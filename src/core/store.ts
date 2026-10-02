@@ -1,5 +1,6 @@
 import { Def, ErrCode, Export, Key } from '../shared/consts';
 import { AppErr } from '../shared/err';
+import { Metas } from './meta';
 import type { Cfg, Fav, FavExport, Recog } from '../shared/types';
 
 /** 本地收藏集与配置，存于 chrome.storage.local。 */
@@ -7,7 +8,14 @@ export class Store {
   static async all(): Promise<Record<string, Fav>> {
     const r = await chrome.storage.local.get(Key.FAVS);
     const v = r[Key.FAVS];
-    return v && typeof v === 'object' ? (v as Record<string, Fav>) : {};
+    if (!v || typeof v !== 'object') return {};
+    // 逐条补齐缺省字段，兼容旧版本存下的数据
+    const m: Record<string, Fav> = {};
+    for (const [k, o] of Object.entries(v as Record<string, unknown>)) {
+      const f = Store.norm(o);
+      if (f) m[k] = f;
+    }
+    return m;
   }
 
   static async put(m: Record<string, Fav>): Promise<void> {
@@ -115,6 +123,7 @@ export class Store {
     const native = b?.name || a.title.native || '';
     const title = b?.name_cn || a.title.chinese || native || a.title.romaji || a.title.english || '';
     const cover = b?.images?.common || b?.images?.large || a.coverImage?.large || '';
+    const m = Metas.of(r);
     return {
       key: String(a.id),
       anilistId: a.id,
@@ -128,6 +137,8 @@ export class Store {
       tweetUrl,
       savedAt: new Date().toISOString(),
       note: '',
+      kind: m.kind,
+      genres: m.genres,
     };
   }
 
@@ -150,6 +161,8 @@ export class Store {
       tweetUrl: typeof o.tweetUrl === 'string' ? o.tweetUrl : '',
       savedAt: typeof o.savedAt === 'string' && o.savedAt ? o.savedAt : new Date().toISOString(),
       note: typeof o.note === 'string' ? o.note : '',
+      kind: typeof o.kind === 'string' ? o.kind : '',
+      genres: Array.isArray(o.genres) ? o.genres.filter((g): g is string => typeof g === 'string') : [],
     };
   }
 }

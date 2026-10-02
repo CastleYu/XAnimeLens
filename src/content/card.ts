@@ -1,7 +1,8 @@
 import css from './card.css';
 import { Bus } from './msg';
 import { Store } from '../core/store';
-import { Api, CardDom, CardState, Def, Dom, ErrText, Msg, Txt } from '../shared/consts';
+import { Metas } from '../core/meta';
+import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, Txt } from '../shared/consts';
 import type { CardData, CardItem } from '../shared/types';
 
 /** 全局唯一浮动卡片（Shadow DOM）。 */
@@ -91,6 +92,7 @@ export class Card {
     const score = b?.rating?.score;
     if (score) meta.append(Card.mk('span', CardDom.SCORE, Txt.STAR + score));
     info.append(meta);
+    Card.meta(info, r);
 
     if (it.shot) {
       const shot = Card.mk('img', CardDom.SHOT);
@@ -115,6 +117,7 @@ export class Card {
       tog.textContent = cmp.hidden ? Txt.CMP : Txt.CMP_OPEN;
       tog.classList.toggle(CardDom.ON, !cmp.hidden);
       if (!cmp.hidden && !cmp.childElementCount) Card.cmp(cmp, input, r.hit.video, it.shot);
+      if (!cmp.hidden) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     });
     links.prepend(tog);
     info.append(links);
@@ -131,6 +134,23 @@ export class Card {
     li.append(fav, cmp);
 
     return li;
+  }
+
+  /** 作品信息：形式 / 季度 / 集数 / 原作 / R18 + 类型标签 + 制作与导演 */
+  static meta(info: HTMLElement, r: CardItem['recog']): void {
+    const m = Metas.of(r);
+    const tags = Card.mk('div', CardDom.TAGS);
+    for (const t of [m.kind, m.air, m.eps, m.src]) if (t) tags.append(Card.mk('span', CardDom.TAG, t));
+    if (m.adult) tags.append(Card.mk('span', `${CardDom.TAG} ${CardDom.ADULT}`, MetaTxt.ADULT));
+    for (const g of m.genres) tags.append(Card.mk('span', `${CardDom.TAG} ${CardDom.GENRE}`, g));
+    if (tags.childElementCount) info.append(tags);
+
+    const sub = [m.studio && MetaTxt.STUDIO + m.studio, m.staff && MetaTxt.STAFF + m.staff].filter(Boolean);
+    if (sub.length) {
+      const p = Card.mk('p', CardDom.SUB, sub.join(Txt.SEP));
+      p.title = p.textContent ?? '';
+      info.append(p);
+    }
   }
 
   /** 展开对比：输入截图 + 匹配片段（片段首次展开时才经 background 拉取） */

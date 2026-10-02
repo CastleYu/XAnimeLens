@@ -447,3 +447,31 @@ body {
   background: var(--col-danger);
   color: #ffffff;
 }
+
+/* 作品形式与类型标签 */
+.col-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 14px 2px;
+}
+
+.col-kind,
+.col-genre {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--col-border);
+  color: var(--col-text-muted);
+}
+
+.col-kind {
+  color: var(--col-accent);
+  border-color: var(--col-accent);
+  background: var(--col-accent-subtle);
+}
+
+.col-genre {
+  border-style: dashed;
+}

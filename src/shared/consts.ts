@@ -107,6 +107,9 @@ export class ColDom {
   static readonly NOTE = 'col-note';
   static readonly DEL = 'col-del';
   static readonly STYLE = 'col-style';
+  static readonly TAGS = 'col-tags';
+  static readonly KIND = 'col-kind';
+  static readonly GENRE = 'col-genre';
 }
 
 /** Matcher 打分 */
@@ -166,6 +169,11 @@ export class CardDom {
   static readonly CMP_CAP = 'xal-cmp-cap';
   static readonly CMP_MEDIA = 'xal-cmp-media';
   static readonly CMP_HINT = 'xal-cmp-hint';
+  static readonly TAGS = 'xal-tags';
+  static readonly TAG = 'xal-tag';
+  static readonly GENRE = 'xal-genre';
+  static readonly ADULT = 'xal-adult';
+  static readonly SUB = 'xal-sub';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -230,4 +238,87 @@ export class Txt {
   static readonly CMP_LOADING = '片段加载中…';
   static readonly CMP_FAIL = '片段加载失败，可点“预览片段”在新标签页查看';
   static readonly MAG = 'M11 11l5.5 5.5M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0z';
+}
+
+/** 作品信息本地化与取舍 */
+export class MetaMap {
+  static readonly FORMAT: Record<string, string> = {
+    TV: 'TV动画',
+    TV_SHORT: 'TV短篇',
+    MOVIE: '剧场版',
+    SPECIAL: '特别篇',
+    OVA: 'OVA',
+    ONA: '网络动画',
+    MUSIC: '音乐MV',
+  };
+  /** Bangumi platform → 展示名 */
+  static readonly PLATFORM: Record<string, string> = {
+    TV: 'TV动画',
+    WEB: '网络动画',
+    OVA: 'OVA',
+    剧场版: '剧场版',
+  };
+  static readonly SOURCE: Record<string, string> = {
+    ORIGINAL: '原创',
+    MANGA: '漫画改',
+    LIGHT_NOVEL: '轻小说改',
+    NOVEL: '小说改',
+    WEB_NOVEL: '网文改',
+    VISUAL_NOVEL: '视觉小说改',
+    VIDEO_GAME: '游戏改',
+    GAME: '游戏改',
+    DOUJINSHI: '同人改',
+    ANIME: '动画衍生',
+    WEB_MANGA: '网漫改',
+    LIVE_ACTION: '真人改',
+    PICTURE_BOOK: '绘本改',
+    COMIC: '漫画改',
+    MULTIMEDIA_PROJECT: '企划',
+    OTHER: '其他',
+  };
+  static readonly SEASON: Record<string, string> = {
+    WINTER: '冬',
+    SPRING: '春',
+    SUMMER: '夏',
+    FALL: '秋',
+  };
+  static readonly GENRE: Record<string, string> = {
+    Action: '动作',
+    Adventure: '冒险',
+    Comedy: '喜剧',
+    Drama: '剧情',
+    Ecchi: '卖肉',
+    Fantasy: '奇幻',
+    Horror: '恐怖',
+    'Mahou Shoujo': '魔法少女',
+    Mecha: '机战',
+    Music: '音乐',
+    Mystery: '悬疑',
+    Psychological: '心理',
+    Romance: '恋爱',
+    'Sci-Fi': '科幻',
+    'Slice of Life': '日常',
+    Sports: '运动',
+    Supernatural: '超自然',
+    Thriller: '惊悚',
+    Hentai: '成人',
+  };
+  /** 与形式/地区/原作重复、不适合当“类型”展示的 Bangumi 标签 */
+  static readonly SKIP_TAGS = ['TV', 'WEB', 'OVA', '剧场版', '日本', '中国', '美国', '韩国', '原创'];
+  static readonly STAFF_KEYS = ['导演', '总导演', '监督'];
+  static readonly STUDIO_KEY = '动画制作';
+  static readonly MAX_GENRES = 6;
+  static readonly MAX_STUDIOS = 2;
+}
+
+export class MetaTxt {
+  static readonly YEAR = '年';
+  static readonly MONTH = '月';
+  static readonly EPS = '共{n}集';
+  static readonly MIN = '每集{n}分钟';
+  static readonly MOVIE_MIN = '{n}分钟';
+  static readonly STAFF = '导演：';
+  static readonly STUDIO = '制作：';
+  static readonly ADULT = 'R18';
+  static readonly JOIN = ' / ';
 }

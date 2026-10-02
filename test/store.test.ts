@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Store } from '../src/core/store';
 import { AppErr } from '../src/shared/err';
-import { Def, ErrCode, Export } from '../src/shared/consts';
+import { Def, ErrCode, Export, Key } from '../src/shared/consts';
 import type { Fav, Recog } from '../src/shared/types';
 
 interface Mem {
@@ -38,6 +38,8 @@ const F = (key: string, savedAt: string, title = key): Fav => ({
   episode: '',
   at: 0,
   similarity: 0.9,
+  kind: '',
+  genres: [],
   tweetUrl: '',
   savedAt,
   note: '',
@@ -193,5 +195,18 @@ describe('Store.toFav', () => {
     expect(f.episode).toBe('');
     expect(f.at).toBe(1);
     expect(f.bgmId).toBeNull();
+  });
+});
+
+describe('Store 兼容旧数据', () => {
+  it('旧版收藏缺少 kind/genres 时补默认值', async () => {
+    const c = mem();
+    vi.stubGlobal('chrome', c);
+    const old = { key: '7', anilistId: 7, bgmId: null, title: 'old', savedAt: '2026-01-01T00:00:00.000Z' };
+    await c.storage.local.set({ [Key.FAVS]: { '7': old } });
+    const [f] = await Store.list();
+    expect(f.kind).toBe('');
+    expect(f.genres).toEqual([]);
+    expect(f.title).toBe('old');
   });
 });

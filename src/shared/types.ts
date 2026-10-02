@@ -23,6 +23,12 @@ export interface TmAnilist {
   startDate?: TmDate;
   episodes?: number | null;
   format?: string | null;
+  genres?: string[];
+  season?: string | null;
+  seasonYear?: number | null;
+  source?: string | null;
+  duration?: number | null;
+  studios?: { edges?: { isMain: boolean; node: { name: string } }[] } | null;
   isAdult: boolean;
   coverImage?: { large?: string; medium?: string } | null;
   siteUrl?: string;
@@ -65,7 +71,28 @@ export interface BgmSubject {
   summary?: string;
   images?: BgmImages | null;
   rating?: { score?: number; rank?: number; total?: number } | null;
-  infobox?: unknown;
+  platform?: string;
+  meta_tags?: string[];
+  tags?: { name: string; count: number }[];
+  total_episodes?: number;
+  infobox?: BgmInfo[];
+}
+
+export interface BgmInfo {
+  key: string;
+  value: string | { k?: string; v: string }[];
+}
+
+/** 合并 AniList 与 Bangumi 后的作品信息（展示用，字段均已本地化） */
+export interface Meta {
+  kind: string; // TV动画 / 剧场版 / OVA …
+  air: string; // 2015年秋 / 2015年10月
+  eps: string; // 共12集 · 每集23分钟
+  src: string; // 漫画改 / 原创 …
+  adult: boolean;
+  genres: string[]; // 日常、百合 …
+  studio: string; // WHITE FOX / Kinema Citrus
+  staff: string; // 导演：xxx
 }
 
 /** 一条识别结果：trace.moe 命中 + 匹配到的 Bangumi 条目 */
@@ -94,6 +121,8 @@ export interface Fav {
   tweetUrl: string;
   savedAt: string; // ISO
   note: string;
+  kind: string; // 作品形式，旧数据为空串
+  genres: string[]; // 类型标签，旧数据为空数组
 }
 
 export interface FavExport {
