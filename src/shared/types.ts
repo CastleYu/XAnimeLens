@@ -188,6 +188,7 @@ export type Req =
   | { type: Msg.FAV_LIST }
   | { type: Msg.CFG_GET }
   | { type: Msg.OPEN_COLLECTION }
+  | { type: Msg.OPEN_SETTINGS }
   | { type: Msg.CLIP; url: string } // 返回 trace.moe 片段 dataURL
   | { type: Msg.CHAR; name: string; subject: number | null }; // 返回 CharInfo | null
 

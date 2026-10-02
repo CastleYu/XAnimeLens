@@ -46,6 +46,9 @@ class Svc {
       case Msg.OPEN_COLLECTION:
         await Svc.open();
         return null;
+      case Msg.OPEN_SETTINGS:
+        await Svc.open(Page.SETTINGS_HASH);
+        return null;
       default:
         throw new AppErr(ErrCode.NETWORK, 'unknown message');
     }
@@ -163,8 +166,8 @@ class Svc {
     }
   }
 
-  static async open(): Promise<void> {
-    await chrome.tabs.create({ url: chrome.runtime.getURL(Page.COLLECTION) });
+  static async open(hash = ''): Promise<void> {
+    await chrome.tabs.create({ url: chrome.runtime.getURL(Page.COLLECTION) + hash });
   }
 
   static err(e: unknown): Err {

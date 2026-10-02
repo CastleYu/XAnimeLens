@@ -365,7 +365,9 @@ export class Card {
     const foot = Card.mk('footer', CardDom.FOOT);
     const open = Card.mk('button', CardDom.OPEN, Txt.OPEN);
     open.type = 'button';
-    foot.append(open);
+    const set = Card.mk('button', `${CardDom.OPEN} ${CardDom.SET}`, Txt.SETTINGS);
+    set.type = 'button';
+    foot.append(open, set);
 
     card.append(head, body, foot);
     root.append(card);
@@ -388,6 +390,11 @@ export class Card {
       e.preventDefault();
       void Bus.send({ type: Msg.OPEN_COLLECTION }).catch(() => {});
     });
+    set.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      void Bus.send({ type: Msg.OPEN_SETTINGS }).catch(() => {});
+    });
     Card.drag(head, host);
   }
 
@@ -409,6 +416,8 @@ export class Card {
     let on = false;
 
     head.addEventListener('pointerdown', (e) => {
+      // 按钮（×）不参与拖动：指针捕获会把 click 重定向到 header，导致按钮点击失效
+      if ((e.target as Element | null)?.closest('button')) return;
       on = true;
       const r = host.getBoundingClientRect();
       ox = r.left;

@@ -10,6 +10,8 @@ export class Inject {
   static boot(): void {
     // 最后启动的实例接管页面（manifest 注入与更新后补注入可能同时存在）
     document.documentElement.setAttribute(Dom.OWNER_ATTR, Inject.id);
+    // 旧实例留下的卡片已与扩展断开，其按钮（重试 / 收藏 / 关闭）都会失效，接管时直接移除
+    document.getElementById(Dom.HOST_ID)?.remove();
     Inject.scan();
     Inject.watch();
   }

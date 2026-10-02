@@ -69,6 +69,7 @@ export enum Msg {
   FAV_LIST = 'favList',
   CFG_GET = 'cfgGet',
   OPEN_COLLECTION = 'openCollection',
+  OPEN_SETTINGS = 'openSettings',
   CLIP = 'clip',
   CHAR = 'char',
 }
@@ -115,6 +116,8 @@ export class Dom {
 export class Page {
   static readonly COLLECTION = 'collection.html';
   static readonly CONTENT_JS = 'content.js';
+  /** 收藏集页面 hash：打开时展开设置并聚焦 API Key */
+  static readonly SETTINGS_HASH = '#settings';
 }
 
 export class Export {
@@ -213,6 +216,7 @@ export class CardDom {
   static readonly ON = 'xal-on';
   static readonly FOOT = 'xal-foot';
   static readonly OPEN = 'xal-open';
+  static readonly SET = 'xal-set';
   static readonly CMP = 'xal-cmp';
   static readonly CMP_BTN = 'xal-cmp-btn';
   static readonly CMP_COL = 'xal-cmp-col';
@@ -297,6 +301,7 @@ export class Txt {
   static readonly RETRY = '重试';
   static readonly CLOSE = '关闭';
   static readonly OPEN = '打开收藏集';
+  static readonly SETTINGS = '设置 API Key';
   static readonly QUOTA = '本月';
   static readonly EP = '第';
   static readonly EP_UNIT = '集';

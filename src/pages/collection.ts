@@ -1,4 +1,4 @@
-import { Api, BackfillDef, ColDom, ColDom2, Def, Export, Key, SrcTxt } from '../shared/consts';
+import { Api, BackfillDef, ColDom, ColDom2, Def, Export, Key, Page, SrcTxt } from '../shared/consts';
 import { Store } from '../core/store';
 import { Csv } from '../core/csv';
 import { Backfill } from '../core/backfill';
@@ -15,7 +15,8 @@ class View {
   static boot(): void {
     document.head.appendChild(View.style());
     View.on();
-    void View.load();
+    void View.load().then(View.focusSet);
+    window.addEventListener('hashchange', View.focusSet);
     chrome.storage.onChanged.addListener((ch, area) => {
       if (area === 'local' && Object.prototype.hasOwnProperty.call(ch, Key.FAVS)) void View.load();
     });
@@ -48,6 +49,15 @@ class View {
     );
     View.el<HTMLInputElement>(ColDom.IMPORT_FILE).addEventListener('change', (e) => void View.imp(e));
     View.el(ColDom.SET_SAVE).addEventListener('click', () => void View.cfgSave());
+  }
+
+  /** 从卡片“设置 API Key”或扩展选项进入（#settings）：展开设置并聚焦 trace.moe API Key */
+  static focusSet(): void {
+    if (location.hash !== Page.SETTINGS_HASH) return;
+    View.el<HTMLDetailsElement>(ColDom.SETTINGS).open = true;
+    const key = View.el<HTMLInputElement>(ColDom.SET_TMKEY);
+    key.scrollIntoView({ block: 'center' });
+    key.focus();
   }
 
   static async load(): Promise<void> {

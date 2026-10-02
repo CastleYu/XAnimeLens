@@ -509,13 +509,15 @@
    4. Footer
    -------------------------------------------------------------------------- */
 .xal-foot {
+  display: flex;
+  gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--xal-border);
   background: rgba(15, 17, 21, 0.6);
 }
 
 .xal-open {
-  width: 100%;
+  flex: 1;
   padding: 7px 12px;
   font-family: inherit;
   font-size: 12px;
