@@ -361,3 +361,8 @@ export class SrcTxt {
   static readonly AI = '疑似 AI 生成图';
   static readonly FAILED = '未返回';
 }
+
+/** AnimeTrace 上传文件名 */
+export class AtFile {
+  static readonly NAME = 'frame.jpg';
+}
