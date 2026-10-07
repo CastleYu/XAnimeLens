@@ -293,6 +293,21 @@ class Photo {
     if (state !== 'ok') throw new Error(`[photo-${mode}] card state=${state} msg=${await p.locator('.xal-err-msg').textContent()}`);
     if (!asked.some((u) => u.includes('name=large'))) throw new Error(`[photo] 未请求大图: ${asked.join(', ')}`);
     if (p.url() !== 'https://x.com/home') throw new Error(`[photo] 点击按钮触发了跳转: ${p.url()}`);
+    // 对比展开后片段播放，收起后暂停，再展开继续播放
+    const clip = () => document.querySelector('#xal-host').shadowRoot.querySelector('.xal-cmp video');
+    const tog = p.locator('.xal-cmp-btn').first();
+    await tog.click();
+    await p.waitForFunction(() => {
+      const v = document.querySelector('#xal-host').shadowRoot.querySelector('.xal-cmp video');
+      return v && !v.paused && v.currentTime > 0;
+    }, null, { timeout: 30000 });
+    await tog.click();
+    await p.waitForTimeout(300);
+    if (!(await p.evaluate(clip)) || !(await p.evaluate(() => document.querySelector('#xal-host').shadowRoot.querySelector('.xal-cmp video').paused))) {
+      throw new Error(`[photo-${mode}] 收起对比后片段仍在播放`);
+    }
+    await tog.click();
+    await p.waitForFunction(() => !document.querySelector('#xal-host').shadowRoot.querySelector('.xal-cmp video').paused, null, { timeout: 5000 });
     const quota = await p.locator('.xal-quota').textContent();
     console.log(`[photo-${mode}] ok: ${await p.locator('.xal-title').first().textContent()} | ${quota}`);
     await ctx.close();

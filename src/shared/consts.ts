@@ -318,7 +318,8 @@ export class Txt {
   static readonly CLOSE = '关闭';
   static readonly OPEN = '打开收藏集';
   static readonly SETTINGS = '设置 API Key';
-  static readonly QUOTA = '本月';
+  static readonly QUOTA = '近24h';
+  static readonly QUOTA_TIP = 'trace.moe 每日额度：最近 24 小时已用 / 每日上限';
   static readonly EP = '第';
   static readonly EP_UNIT = '集';
   static readonly SEP = ' · ';

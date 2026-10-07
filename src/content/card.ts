@@ -142,6 +142,8 @@ export class Card {
         if (open) Card.opened.add(key);
         else Card.opened.delete(key);
         if (open && !cmp.childElementCount) Card.cmp(cmp, input, h?.video ?? '', it.shot);
+        // 收起时暂停匹配片段，展开时继续播放
+        cmp.querySelectorAll('video').forEach((v) => (open ? void v.play().catch(() => {}) : v.pause()));
         if (open && scroll) requestAnimationFrame(() => cmp.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
       };
       tog.addEventListener('click', (e) => {
@@ -269,7 +271,7 @@ export class Card {
         const v = Card.mk('video', CardDom.CMP_MEDIA);
         v.muted = true;
         v.loop = true;
-        v.autoplay = true;
+        v.autoplay = !box.hidden; // 片段加载完成前已收起则不自动播放
         v.controls = true;
         v.playsInline = true;
         if (shot) v.poster = shot;
@@ -406,6 +408,7 @@ export class Card {
     }
     Card.quota.hidden = false;
     Card.quota.textContent = `${Txt.QUOTA} ${data.quotaUsed ?? 0}/${data.quota}`;
+    Card.quota.title = Txt.QUOTA_TIP;
   }
 
   static drag(head: HTMLElement, host: HTMLElement): void {

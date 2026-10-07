@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XAnimeLens",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "在 X 上识别视频与图片里的动漫（trace.moe + Bangumi），并收藏到本地。",
   "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "host_permissions": [
