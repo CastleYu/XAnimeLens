@@ -239,6 +239,9 @@ class Photo {
       <img src="https://pbs.twimg.com/media/e2e?format=jpg&name=small" style="width:100%;height:100%">
     </div>
   </a>
+  <div data-testid="tweetPhoto" id="small" style="width:80px;height:80px">
+    <img src="https://pbs.twimg.com/media/e2e-small?format=jpg&name=small" style="width:100%;height:100%">
+  </div>
   <div data-testid="tweetPhoto" id="gif" style="width:640px;height:360px">
     <div data-testid="videoPlayer" style="width:100%;height:100%"><video muted></video></div>
   </div>
@@ -270,6 +273,12 @@ class Photo {
     const btn = p.locator('[data-testid="tweetPhoto"]:not(#gif) .xal-btn');
     await btn.waitFor();
     if (await p.locator('#gif > .xal-btn-host').count()) throw new Error('[photo] 视频容器外层重复注入按钮');
+    // 过小的图片不显示按钮；放大后出现，再缩小后移除
+    if (await p.locator('#small > .xal-btn-host').count()) throw new Error('[photo] 小图显示了识别按钮');
+    await p.evaluate(() => Object.assign(document.querySelector('#small').style, { width: '300px', height: '200px' }));
+    await p.locator('#small > .xal-btn-host').waitFor({ timeout: 5000 });
+    await p.evaluate(() => Object.assign(document.querySelector('#small').style, { width: '80px', height: '80px' }));
+    await p.locator('#small > .xal-btn-host').waitFor({ state: 'detached', timeout: 5000 });
     await btn.click();
     await p.waitForFunction(
       () => {

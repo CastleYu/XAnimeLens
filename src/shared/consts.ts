@@ -111,6 +111,9 @@ export class Dom {
   static readonly VIDEO_SEL = 'div[data-testid="videoPlayer"]';
   /** 推文图片；大图查看器 */
   static readonly PHOTO_SEL = 'div[data-testid="tweetPhoto"], div[data-testid="swipe-to-dismiss"]';
+  /** 图片显示区域小于此尺寸（CSS 像素）不显示识别按钮 */
+  static readonly PHOTO_MIN_W = 120;
+  static readonly PHOTO_MIN_H = 90;
   static readonly PHOTO_IMG_SEL = 'img[src*="pbs.twimg.com/media/"]';
   /** pbs.twimg.com 图片尺寸参数 */
   static readonly PIC_NAME = 'name';

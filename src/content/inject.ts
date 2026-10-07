@@ -43,9 +43,35 @@ export class Inject {
     if (!Inject.live()) return;
     document.querySelectorAll<HTMLElement>(Dom.VIDEO_SEL).forEach((el) => Inject.one(el));
     document.querySelectorAll<HTMLElement>(Dom.PHOTO_SEL).forEach((el) => {
-      // 视频 / GIF 也套在图片容器里，由播放器自己的按钮负责
-      if (!el.querySelector(Dom.VIDEO_SEL) && el.querySelector(Dom.PHOTO_IMG_SEL)) Inject.one(el);
+      // 尺寸变化（懒布局、窗口缩放）时重新判断是否显示按钮；observe 后会立即回调一次
+      if (Inject.seen.has(el)) Inject.photo(el);
+      else {
+        Inject.seen.add(el);
+        Inject.ro.observe(el);
+      }
     });
+  }
+
+  /** 已观察尺寸的图片容器 */
+  static readonly seen = new WeakSet<Element>();
+  static readonly ro = new ResizeObserver((es) => es.forEach((e) => Inject.photo(e.target as HTMLElement)));
+
+  /** 图片容器：显示区域足够大才注入按钮，缩小后移除 */
+  static photo(el: HTMLElement): void {
+    if (!Inject.live()) {
+      Inject.ro.disconnect();
+      return;
+    }
+    // 视频 / GIF 也套在图片容器里，由播放器自己的按钮负责
+    if (el.querySelector(Dom.VIDEO_SEL) || !el.querySelector(Dom.PHOTO_IMG_SEL)) return;
+    if (Inject.big(el)) Inject.one(el);
+    else el.querySelectorAll(`:scope > .${CardDom.BTN_HOST}`).forEach((n) => n.remove());
+  }
+
+  /** 显示区域不小于按钮可用的最小尺寸 */
+  static big(el: Element): boolean {
+    const r = el.getBoundingClientRect();
+    return r.width >= Dom.PHOTO_MIN_W && r.height >= Dom.PHOTO_MIN_H;
   }
 
   /** 给单个播放器注入按钮；React 重建宿主时补回 */
