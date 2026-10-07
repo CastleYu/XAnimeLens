@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "XAnimeLens",
-  "version": "0.3.5",
-  "description": "在 X 上识别视频里的动漫（trace.moe + Bangumi），并收藏到本地。",
+  "version": "0.3.6",
+  "description": "在 X 上识别视频与图片里的动漫（trace.moe + Bangumi），并收藏到本地。",
   "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "host_permissions": [
+    "<all_urls>",
     "https://x.com/*",
     "https://twitter.com/*",
     "https://api.trace.moe/*",

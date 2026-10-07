@@ -111,6 +111,8 @@
 }
 
 .xal-btn.xal-busy .xal-ico {
+  /* 绕镜片圆心 (11,11)/24 旋转，而非 viewBox 中心 */
+  transform-origin: 45.833% 45.833%;
   animation: xal-spin 0.85s linear infinite;
 }
 

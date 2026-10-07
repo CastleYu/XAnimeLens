@@ -15,19 +15,34 @@ afterEach(() => vi.unstubAllGlobals());
 describe('TraceMoe.search', () => {
   it('POST 图片并按约定构造请求，解析响应', async () => {
     const body: TmResp = { error: '', result: [], quota: 1, quotaUsed: 2 };
-    const spy = vi.fn().mockResolvedValue(json(body));
+    const spy = vi.fn().mockResolvedValueOnce(json(body)).mockResolvedValueOnce(new Response('', { status: 500 }));
     vi.stubGlobal('fetch', spy);
 
     const blob = img();
     const out = await TraceMoe.search(blob, 'k');
 
+    // /me 失败时保留 search 自带的额度
     expect(out).toEqual(body);
-    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledTimes(2);
     const [url, opt] = spy.mock.calls[0];
     expect(url).toBe(URL);
     expect(opt.method).toBe('POST');
     expect(opt.body).toBe(blob);
     expect(opt.headers['Content-Type']).toBe('image/png');
+    expect(opt.headers[Api.TM_KEY_HEADER]).toBe('k');
+  });
+
+  it('额度以 /me 为准，并携带 API Key', async () => {
+    const spy = vi
+      .fn()
+      .mockResolvedValueOnce(json({ error: '', result: [], quota: 100, quotaUsed: 5 }))
+      .mockResolvedValueOnce(json({ id: 'k', quota: 1000, quotaUsed: 6 }));
+    vi.stubGlobal('fetch', spy);
+
+    const out = await TraceMoe.search(img(), 'k');
+    expect(out).toMatchObject({ quota: 1000, quotaUsed: 6 });
+    const [url, opt] = spy.mock.calls[1];
+    expect(url).toBe(Api.TM_ME);
     expect(opt.headers[Api.TM_KEY_HEADER]).toBe('k');
   });
 

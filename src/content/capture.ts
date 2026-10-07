@@ -33,12 +33,39 @@ export class Capture {
     // 未加载（preload=none / MSE blob 尚未拉流）时播放器显示的是封面图
     if (!Capture.has(video) && video.poster) {
       try {
-        return await Capture.poster(video.poster);
+        return await Capture.pic(video.poster);
       } catch {
         // 封面图跨域不可读时退回整页截图（截到的同样是封面）
       }
     }
     return Capture.fallback(video);
+  }
+
+  /** 推文图片：页面内 crossOrigin 加载大图 → 后台下载 → 整页截图裁剪图片区域 */
+  static async photo(img: HTMLImageElement, el: Element): Promise<string> {
+    const url = Capture.big(img.currentSrc || img.src);
+    try {
+      return await Capture.pic(url);
+    } catch {
+      // 页面内不可读（缓存的非 CORS 响应等），交给后台下载
+    }
+    try {
+      return await Capture.pic(await Bus.send<string>({ type: Msg.PIC, url }));
+    } catch {
+      return Capture.fallback(el);
+    }
+  }
+
+  /** pbs.twimg.com 图片换成大图尺寸（缩略图可能被裁成方形） */
+  static big(src: string): string {
+    try {
+      const u = new URL(src);
+      if (!u.searchParams.has(Dom.PIC_NAME)) return src;
+      u.searchParams.set(Dom.PIC_NAME, Dom.PIC_SIZE);
+      return u.toString();
+    } catch {
+      return src;
+    }
   }
 
   /** 当前帧可绘制 */
@@ -65,11 +92,11 @@ export class Capture {
     });
   }
 
-  /** 以 crossOrigin=anonymous 加载封面图并绘制 */
-  static poster(src: string): Promise<string> {
+  /** 以 crossOrigin=anonymous 加载图片（封面 / 推文图片）并绘制 */
+  static pic(src: string): Promise<string> {
     return new Promise((ok, no) => {
       const img = new Image();
-      const timer = setTimeout(() => no(new AppErr(ErrCode.CAPTURE, 'poster timeout')), Def.POSTER_MS);
+      const timer = setTimeout(() => no(new AppErr(ErrCode.CAPTURE, 'image timeout')), Def.POSTER_MS);
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         clearTimeout(timer);
@@ -81,7 +108,7 @@ export class Capture {
       };
       img.onerror = () => {
         clearTimeout(timer);
-        no(new AppErr(ErrCode.CAPTURE, 'poster load'));
+        no(new AppErr(ErrCode.CAPTURE, 'image load'));
       };
       img.src = src;
     });
@@ -136,7 +163,7 @@ export class Capture {
   }
 
   /** 整页截图 → 按 rect * (截图宽 / innerWidth) 裁剪 → 缩放 */
-  static async fallback(video: HTMLVideoElement): Promise<string> {
+  static async fallback(video: Element): Promise<string> {
     Capture.veil(true);
     try {
       await Capture.frames(2);

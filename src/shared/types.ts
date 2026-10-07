@@ -53,6 +53,14 @@ export interface TmResp {
   quotaUsed?: number;
 }
 
+/** trace.moe /me：当前 IP 或 API Key 的额度 */
+export interface TmMe {
+  id: string;
+  priority?: number;
+  quota: number;
+  quotaUsed: number;
+}
+
 /** Bangumi 条目（只列用到的字段） */
 export interface BgmImages {
   large?: string;
@@ -190,6 +198,7 @@ export type Req =
   | { type: Msg.OPEN_COLLECTION }
   | { type: Msg.OPEN_SETTINGS }
   | { type: Msg.CLIP; url: string } // 返回 trace.moe 片段 dataURL
+  | { type: Msg.PIC; url: string } // 后台下载图片，返回 dataURL
   | { type: Msg.CHAR; name: string; subject: number | null }; // 返回 CharInfo | null
 
 export type Res<T> = { ok: true; data: T } | { ok: false; err: Err };

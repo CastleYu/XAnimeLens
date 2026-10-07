@@ -41,6 +41,8 @@ class Svc {
         return Store.cfg();
       case Msg.CLIP:
         return Svc.clip(req.url);
+      case Msg.PIC:
+        return Svc.pic(req.url);
       case Msg.CHAR:
         return Svc.char(req.name, req.subject);
       case Msg.OPEN_COLLECTION:
@@ -143,6 +145,13 @@ class Svc {
   static async clip(url: string): Promise<string> {
     const d = await Img.data(Svc.shot(url));
     if (!d) throw new AppErr(ErrCode.NETWORK, 'clip');
+    return d;
+  }
+
+  /** 页面内跨域读取失败的图片由后台下载（不受页面 CORS / CSP 限制） */
+  static async pic(url: string): Promise<string> {
+    const d = await Img.data(url);
+    if (!d) throw new AppErr(ErrCode.CAPTURE, 'pic');
     return d;
   }
 

@@ -72,6 +72,7 @@ export enum Msg {
   OPEN_SETTINGS = 'openSettings',
   CLIP = 'clip',
   CHAR = 'char',
+  PIC = 'pic',
 }
 
 /** chrome.storage.local 键 */
@@ -108,6 +109,12 @@ export class Dom {
   static readonly BTN_CLASS = 'xal-btn';
   static readonly MARK_ATTR = 'data-xal';
   static readonly VIDEO_SEL = 'div[data-testid="videoPlayer"]';
+  /** 推文图片；大图查看器 */
+  static readonly PHOTO_SEL = 'div[data-testid="tweetPhoto"], div[data-testid="swipe-to-dismiss"]';
+  static readonly PHOTO_IMG_SEL = 'img[src*="pbs.twimg.com/media/"]';
+  /** pbs.twimg.com 图片尺寸参数 */
+  static readonly PIC_NAME = 'name';
+  static readonly PIC_SIZE = 'large';
   static readonly TWEET_SEL = 'article[data-testid="tweet"]';
   static readonly STATUS_LINK_SEL = 'a[href*="/status/"]';
   /** 注入实例标识：扩展更新后新脚本据此替换旧脚本留下的失效按钮 */
@@ -257,7 +264,7 @@ export enum CardState {
 
 /** 错误码 → 中文提示 */
 export class ErrText {
-  static readonly NO_VIDEO = '未找到可识别的视频';
+  static readonly NO_VIDEO = '未找到可识别的视频或图片';
   static readonly CAPTURE = '截帧失败';
   static readonly NETWORK = '网络请求失败';
   static readonly QUOTA = '识别额度已用完或请求过于频繁';

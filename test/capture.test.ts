@@ -40,3 +40,16 @@ describe('Capture.scale', () => {
     expect(Capture.scale(2560, 1440, 1280)).toEqual({ w: 1280, h: 720 });
   });
 });
+
+describe('Capture.big', () => {
+  it('pbs 图片换成大图尺寸', () => {
+    expect(Capture.big('https://pbs.twimg.com/media/abc?format=jpg&name=small')).toBe(
+      'https://pbs.twimg.com/media/abc?format=jpg&name=large',
+    );
+  });
+
+  it('无尺寸参数或非法 URL 原样返回', () => {
+    expect(Capture.big('https://pbs.twimg.com/media/abc.jpg')).toBe('https://pbs.twimg.com/media/abc.jpg');
+    expect(Capture.big('not a url')).toBe('not a url');
+  });
+});

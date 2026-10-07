@@ -5,7 +5,7 @@ import { Card } from './card';
 import { CardDom, Dom, ErrText, Msg, Txt } from '../shared/consts';
 import type { CardData } from '../shared/types';
 
-/** 发现视频、注入识别按钮。 */
+/** 发现视频与图片、注入识别按钮。 */
 export class Inject {
   static boot(): void {
     // 最后启动的实例接管页面（manifest 注入与更新后补注入可能同时存在）
@@ -42,6 +42,10 @@ export class Inject {
   static scan(): void {
     if (!Inject.live()) return;
     document.querySelectorAll<HTMLElement>(Dom.VIDEO_SEL).forEach((el) => Inject.one(el));
+    document.querySelectorAll<HTMLElement>(Dom.PHOTO_SEL).forEach((el) => {
+      // 视频 / GIF 也套在图片容器里，由播放器自己的按钮负责
+      if (!el.querySelector(Dom.VIDEO_SEL) && el.querySelector(Dom.PHOTO_IMG_SEL)) Inject.one(el);
+    });
   }
 
   /** 给单个播放器注入按钮；React 重建宿主时补回 */
@@ -90,17 +94,16 @@ export class Inject {
     el.append(host);
   }
 
-  /** 点击流程：截帧（不暂停播放）→ 识别 → 渲染；异常显示可重试卡片 */
+  /** 点击流程：截帧（不暂停播放）/ 取图 → 识别 → 渲染；异常显示可重试卡片 */
   static async run(el: HTMLElement, btn: HTMLButtonElement): Promise<void> {
-    const video = el.querySelector('video');
-    if (!video) {
+    // 先同步截取点击瞬间的帧，再显示加载卡片，视频继续播放
+    const job = Inject.grab(el);
+    if (!job) {
       Card.error(ErrText.NO_VIDEO, () => void Inject.run(el, btn));
       return;
     }
     Inject.busy(btn, true);
     try {
-      // 先同步截取点击瞬间的帧，再显示加载卡片，视频继续播放
-      const job = Capture.frame(video);
       Card.loading();
       const url = Inject.tweetUrl(el);
       const img = await job;
@@ -112,6 +115,14 @@ export class Inject {
     } finally {
       Inject.busy(btn, false);
     }
+  }
+
+  /** 视频取当前帧，图片取原图；都没有返回 null */
+  static grab(el: HTMLElement): Promise<string> | null {
+    const video = el.querySelector('video');
+    if (video) return Capture.frame(video);
+    const img = el.querySelector<HTMLImageElement>(Dom.PHOTO_IMG_SEL);
+    return img ? Capture.photo(img, el) : null;
   }
 
   /** 推文链接：article 内 time 的最近 a[href] */

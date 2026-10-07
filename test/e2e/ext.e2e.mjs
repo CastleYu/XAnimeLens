@@ -228,8 +228,80 @@ class Cold {
   }
 }
 
-await E2e.run(true);
-await E2e.run(false);
-await Cold.run('lazy');
-await Cold.run('poster');
+// 推文图片：缩略图换大图识别；套在图片容器里的视频只出现播放器自己的按钮
+class Photo {
+  static html() {
+    return `<!doctype html><html><body style="background:#000;margin:0">
+<article data-testid="tweet" style="width:640px;margin:40px">
+  <a href="/someone/status/123456789"><time>1h</time></a>
+  <a href="/someone/status/123456789/photo/1">
+    <div data-testid="tweetPhoto" style="width:640px;height:360px">
+      <img src="https://pbs.twimg.com/media/e2e?format=jpg&name=small" style="width:100%;height:100%">
+    </div>
+  </a>
+  <div data-testid="tweetPhoto" id="gif" style="width:640px;height:360px">
+    <div data-testid="videoPlayer" style="width:100%;height:100%"><video muted></video></div>
+  </div>
+</article></body></html>`;
+  }
+
+  /** shot：大图不可用、缩略图无 CORS 头，只能走整页截图兜底 */
+  static async run(mode = 'cors') {
+    const ctx = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      headless: true,
+      viewport: { width: 1280, height: 1000 },
+      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+    });
+    const asked = [];
+    await ctx.route('https://x.com/**', (r) => r.fulfill({ contentType: 'text/html', body: Photo.html() }));
+    await ctx.route('https://pbs.twimg.com/**', (r) => {
+      const u = r.request().url();
+      asked.push(u);
+      if (mode === 'shot') {
+        if (u.includes('name=large')) return r.fulfill({ status: 404, body: '' });
+        return r.fulfill({ contentType: 'image/jpeg', body: poster });
+      }
+      return r.fulfill({ contentType: 'image/jpeg', body: poster, headers: { 'access-control-allow-origin': '*' } });
+    });
+    if (!ctx.serviceWorkers().length) await ctx.waitForEvent('serviceworker');
+    const p = await ctx.newPage();
+    await p.goto('https://x.com/home');
+    const btn = p.locator('[data-testid="tweetPhoto"]:not(#gif) .xal-btn');
+    await btn.waitFor();
+    if (await p.locator('#gif > .xal-btn-host').count()) throw new Error('[photo] 视频容器外层重复注入按钮');
+    await btn.click();
+    await p.waitForFunction(
+      () => {
+        const c = document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-card');
+        return c && c.getAttribute('data-state') !== 'loading';
+      },
+      null,
+      { timeout: 60000 },
+    );
+    const state = await p.locator('.xal-card').getAttribute('data-state');
+    await p.screenshot({ path: `${out}/card-photo-${mode}.png` });
+    if (state !== 'ok') throw new Error(`[photo-${mode}] card state=${state} msg=${await p.locator('.xal-err-msg').textContent()}`);
+    if (!asked.some((u) => u.includes('name=large'))) throw new Error(`[photo] 未请求大图: ${asked.join(', ')}`);
+    if (p.url() !== 'https://x.com/home') throw new Error(`[photo] 点击按钮触发了跳转: ${p.url()}`);
+    const quota = await p.locator('.xal-quota').textContent();
+    console.log(`[photo-${mode}] ok: ${await p.locator('.xal-title').first().textContent()} | ${quota}`);
+    await ctx.close();
+  }
+}
+
+// 可选参数只跑部分场景（节省 trace.moe 额度）：node test/e2e/ext.e2e.mjs photo
+const only = process.argv[2];
+if (!only || only === 'video') {
+  await E2e.run(true);
+  await E2e.run(false);
+}
+if (!only || only === 'cold') {
+  await Cold.run('lazy');
+  await Cold.run('poster');
+}
+if (!only || only === 'photo') {
+  await Photo.run('cors');
+  await Photo.run('shot');
+}
 console.log('E2E PASS');
