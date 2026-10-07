@@ -6,6 +6,7 @@ import path from 'node:path';
 
 const ext = path.resolve('dist');
 const clip = readFileSync('test/e2e/clip.mp4');
+const poster = readFileSync('test/e2e/poster.jpg');
 const out = 'Temp/e2e';
 mkdirSync(out, { recursive: true });
 
@@ -173,6 +174,62 @@ class E2e {
   }
 }
 
+// 视频尚未加载（readyState=0）：lazy = preload=none 的直链；poster = 只有封面、无可加载的源（同 X 未拉流的 MSE 播放器）
+class Cold {
+  static html(mode) {
+    const media = mode === 'lazy'
+      ? 'src="https://video.twimg.com/e2e.mp4" preload="none"'
+      : 'poster="https://pbs.twimg.com/e2e.jpg" preload="none"';
+    return `<!doctype html><html><body style="background:#000;margin:0">
+<article data-testid="tweet" style="width:640px;margin:40px">
+  <a href="/someone/status/123456789"><time>1h</time></a>
+  <div data-testid="videoPlayer" style="width:640px;height:360px">
+    <video ${media} muted playsinline style="width:100%;height:100%"></video>
+  </div>
+</article></body></html>`;
+  }
+
+  static async run(mode) {
+    const ctx = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      headless: true,
+      viewport: { width: 1280, height: 800 },
+      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+    });
+    await ctx.route('https://x.com/**', (r) => r.fulfill({ contentType: 'text/html', body: Cold.html(mode) }));
+    await ctx.route('https://video.twimg.com/**', (r) =>
+      r.fulfill({ contentType: 'video/mp4', body: clip, headers: { 'access-control-allow-origin': 'https://x.com' } }),
+    );
+    await ctx.route('https://pbs.twimg.com/**', (r) =>
+      r.fulfill({ contentType: 'image/jpeg', body: poster, headers: { 'access-control-allow-origin': '*' } }),
+    );
+    if (!ctx.serviceWorkers().length) await ctx.waitForEvent('serviceworker');
+    const p = await ctx.newPage();
+    await p.goto('https://x.com/home');
+    await p.locator('.xal-btn').waitFor();
+    const rs = await p.evaluate(() => document.querySelector('video').readyState);
+    if (rs >= 2) throw new Error(`[cold-${mode}] 前置条件失败：视频已加载 readyState=${rs}`);
+    await p.locator('.xal-btn').click();
+    await p.waitForFunction(
+      () => {
+        const c = document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-card');
+        return c && c.getAttribute('data-state') !== 'loading';
+      },
+      null,
+      { timeout: 60000 },
+    );
+    const state = await p.locator('.xal-card').getAttribute('data-state');
+    await p.screenshot({ path: `${out}/card-cold-${mode}.png` });
+    if (state !== 'ok') {
+      throw new Error(`[cold-${mode}] card state=${state} msg=${await p.locator('.xal-err-msg').textContent()}`);
+    }
+    console.log(`[cold-${mode}] readyState=${rs} ok: ${await p.locator('.xal-title').first().textContent()}`);
+    await ctx.close();
+  }
+}
+
 await E2e.run(true);
 await E2e.run(false);
+await Cold.run('lazy');
+await Cold.run('poster');
 console.log('E2E PASS');

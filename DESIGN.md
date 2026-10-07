@@ -114,9 +114,11 @@ class Csv {
 ### content/*
 
 - `MutationObserver` 监听 `Dom.VIDEO_SEL`，给每个播放器注入一个悬浮按钮（`Dom.MARK_ATTR` 防重复）。按钮放在播放器右上角，不遮挡 X 自己的控件。
-- 点击后：暂停视频 → `Capture.frame(video)`：
+- 点击后（不暂停视频，按钮拦截指针事件以免播放器切换播放状态）→ `Capture.frame(video)`：
+  0. 视频缓冲中先等待首帧（`Def.READY_MS`）。
   1. 优先 canvas `drawImage(video)` → `toBlob`（缩放到 `Def.MAX_EDGE`）。
-  2. 抛 SecurityError（跨域污染）时：隐藏按钮和卡片 → 发 `CAPTURE` 拿整页截图 → 按 `video.getBoundingClientRect() * devicePixelRatio` 裁剪。
+  2. 直链视频污染 canvas 或未加载：`crossOrigin` 重新加载同一地址截帧；仍未加载则用 `video.poster` 封面图。
+  3. 都失败时 SecurityError（跨域污染）时：隐藏按钮和卡片 → 发 `CAPTURE` 拿整页截图 → 按 `video.getBoundingClientRect() * devicePixelRatio` 裁剪。
 - 推文链接：向上找 `Dom.TWEET_SEL`，取其中 `time` 的父级 `a[href*="/status/"]`，退回 `location.href`。
 - 卡片：Shadow DOM，固定在视口右下角，可拖动、可关闭；状态包括加载中、结果列表、错误。每条结果显示封面、中文名 / 日文名、集数、时间点 `mm:ss`、相似度百分比、Bangumi 评分、链接（bgm.tv 条目、trace.moe 预览视频、AniList），以及收藏 / 取消收藏按钮。底部有“打开收藏集”入口。
 

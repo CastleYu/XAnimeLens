@@ -20,7 +20,7 @@ Chrome 打开 `chrome://extensions` → 开启「开发者模式」→「加载�
 
 ## 使用
 
-- X 上任意视频右上角出现「识别」按钮，点击即暂停并识别当前帧（尽量停在没有字幕遮挡的画面）。
+- X 上任意视频右上角出现「识别」按钮，点击即识别当前帧，视频继续播放（尽量在没有字幕遮挡的画面点击）；视频还没开始加载时也能识别。
 - 卡片中可收藏、打开 Bangumi / AniList / trace.moe 预览片段。
 - 点击扩展图标或卡片底部「打开收藏集」进入收藏集：搜索、备注、删除、导出 JSON / CSV、导入 JSON。
 - 收藏集页「设置」中可填 trace.moe API Key（提高额度）、最低相似度、Bangumi Token。
@@ -42,6 +42,8 @@ Chrome 打开 `chrome://extensions` → 开启「开发者模式」→「加载�
 
 ## 截帧策略
 
+0. 视频正在缓冲时先最多等待 `Def.READY_MS` 拿到首帧。
 1. 直接 `canvas.drawImage(video)`（X 的 MSE 视频不会污染 canvas）。
-2. 直链视频（GIF 转 mp4 等）污染 canvas 时，用 `crossOrigin=anonymous` 重新加载同一地址并跳到同一时间点截帧（video.twimg.com 对 x.com 返回 CORS 头）。
-3. 仍失败时退回整页截图裁剪（`captureVisibleTab`，需要 `<all_urls>` 或 `activeTab`，默认未申请，此时会提示截帧失败）。
+2. 直链视频（GIF 转 mp4 等）污染 canvas 或尚未加载时，用 `crossOrigin=anonymous` 重新加载同一地址并跳到同一时间点截帧（video.twimg.com 对 x.com 返回 CORS 头）。
+3. 视频尚未加载（`preload=none`、MSE 未拉流）时用播放器显示的封面图 `video.poster` 识别。
+4. 仍失败时退回整页截图裁剪（`captureVisibleTab`，需要 `<all_urls>` 或 `activeTab`，默认未申请，此时会提示截帧失败）。

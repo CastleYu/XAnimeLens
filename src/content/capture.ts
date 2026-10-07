@@ -13,20 +13,78 @@ export interface Box {
 /** 截帧：优先 canvas；跨域污染时整页截图后按播放器位置裁剪。 */
 export class Capture {
   static async frame(video: HTMLVideoElement): Promise<string> {
-    if (video.readyState < 2) throw new AppErr(ErrCode.CAPTURE, '视频尚未加载');
-    try {
-      return Capture.canvas(video);
-    } catch {
-      // 直链视频（如 GIF 转 mp4）会污染 canvas；video.twimg.com 对 x.com 返回 CORS 头，以 crossOrigin 重新加载即可截帧
+    // 正在播放/缓冲中的视频先短暂等待首帧，拿到的才是当前画面
+    if (!Capture.has(video) && Capture.busy(video)) await Capture.ready(video, Def.READY_MS);
+    if (Capture.has(video)) {
+      try {
+        return Capture.canvas(video);
+      } catch {
+        // 直链视频（如 GIF 转 mp4）会污染 canvas；video.twimg.com 对 x.com 返回 CORS 头，以 crossOrigin 重新加载即可截帧
+      }
     }
+    // 尚未加载的直链视频同样可以独立重新加载后截帧
     if (/^https?:/.test(video.currentSrc)) {
       try {
         return await Capture.clone(video.currentSrc, video.currentTime);
       } catch {
-        // 继续整页截图兜底（需要 activeTab 或 <all_urls>）
+        // 继续尝试封面图 / 整页截图
+      }
+    }
+    // 未加载（preload=none / MSE blob 尚未拉流）时播放器显示的是封面图
+    if (!Capture.has(video) && video.poster) {
+      try {
+        return await Capture.poster(video.poster);
+      } catch {
+        // 封面图跨域不可读时退回整页截图（截到的同样是封面）
       }
     }
     return Capture.fallback(video);
+  }
+
+  /** 当前帧可绘制 */
+  static has(video: HTMLVideoElement): boolean {
+    return video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+  }
+
+  /** 正在播放、已有进度或正在拉流：值得等待首帧 */
+  static busy(video: HTMLVideoElement): boolean {
+    return !video.paused || video.currentTime > 0 || video.networkState === HTMLMediaElement.NETWORK_LOADING;
+  }
+
+  /** 等待 loadeddata / canplay，超时也正常返回 */
+  static ready(video: HTMLVideoElement, ms: number): Promise<void> {
+    return new Promise((ok) => {
+      const evts = ['loadeddata', 'canplay'];
+      const done = (): void => {
+        clearTimeout(timer);
+        evts.forEach((t) => video.removeEventListener(t, done));
+        ok();
+      };
+      const timer = setTimeout(done, ms);
+      evts.forEach((t) => video.addEventListener(t, done));
+    });
+  }
+
+  /** 以 crossOrigin=anonymous 加载封面图并绘制 */
+  static poster(src: string): Promise<string> {
+    return new Promise((ok, no) => {
+      const img = new Image();
+      const timer = setTimeout(() => no(new AppErr(ErrCode.CAPTURE, 'poster timeout')), Def.POSTER_MS);
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        clearTimeout(timer);
+        try {
+          ok(Capture.draw(img, img.naturalWidth, img.naturalHeight));
+        } catch (e) {
+          no(e);
+        }
+      };
+      img.onerror = () => {
+        clearTimeout(timer);
+        no(new AppErr(ErrCode.CAPTURE, 'poster load'));
+      };
+      img.src = src;
+    });
   }
 
   /** 以 crossOrigin=anonymous 重新加载同一视频，跳到同一时间点截帧 */
@@ -63,14 +121,17 @@ export class Capture {
 
   /** canvas.drawImage(video)；跨域时 toDataURL 抛 SecurityError */
   static canvas(video: HTMLVideoElement): string {
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+    return Capture.draw(video, video.videoWidth, video.videoHeight);
+  }
+
+  /** 按原始尺寸缩放绘制为 JPEG dataURL */
+  static draw(src: CanvasImageSource, vw: number, vh: number): string {
     if (!vw || !vh) throw new AppErr(ErrCode.CAPTURE, '视频尺寸无效');
     const s = Capture.scale(vw, vh, Def.MAX_EDGE);
     const cv = Capture.board(s.w, s.h);
     const ctx = cv.getContext('2d');
     if (!ctx) throw new AppErr(ErrCode.CAPTURE, 'canvas 不可用');
-    ctx.drawImage(video, 0, 0, s.w, s.h);
+    ctx.drawImage(src, 0, 0, s.w, s.h);
     return cv.toDataURL('image/jpeg', Def.JPEG_Q);
   }
 

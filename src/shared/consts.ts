@@ -86,6 +86,10 @@ export class Def {
   static readonly JPEG_Q = 0.9;
   static readonly MAX_EDGE = 1280;
   static readonly CLONE_MS = 15000;
+  /** 视频正在缓冲时等待首帧可用的最长时间 */
+  static readonly READY_MS = 3000;
+  /** 加载封面图（poster）超时 */
+  static readonly POSTER_MS = 8000;
 }
 
 export enum ErrCode {
