@@ -49,3 +49,7 @@ Chrome 打开 `chrome://extensions` → 开启「开发者模式」→「加载�
 2. 直链视频（GIF 转 mp4 等）污染 canvas 或尚未加载时，用 `crossOrigin=anonymous` 重新加载同一地址并跳到同一时间点截帧（video.twimg.com 对 x.com 返回 CORS 头）。
 3. 视频尚未加载（`preload=none`、MSE 未拉流）时用播放器显示的封面图 `video.poster` 识别。
 4. 仍失败时退回整页截图裁剪（`captureVisibleTab`，需要 `<all_urls>` 或 `activeTab`，默认未申请，此时会提示截帧失败）。
+
+## 发布
+
+`package.json` 与 `static/manifest.json` 的版本号同步修改后推送到 `main`，GitHub Actions（`.github/workflows/release.yml`）会自动构建并发布 `v<版本号>` Release，附带 `XAnimeLens-<版本号>.zip`；该版本已发布过则跳过。也可在 Actions 页面手动运行。

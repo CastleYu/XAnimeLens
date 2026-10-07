@@ -1,0 +1,68 @@
+# 版本号变化时构建并发布 Release；也可在 Actions 页面手动触发
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - static/manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Read version
+        id: ver
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          mver=$(node -p "require('./static/manifest.json').version")
+          if [ "$ver" != "$mver" ]; then
+            echo "package.json ($ver) 与 manifest.json ($mver) 版本不一致" >&2
+            exit 1
+          fi
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+          echo "zip=XAnimeLens-$ver.zip" >> "$GITHUB_OUTPUT"
+          if gh release view "v$ver" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release v$ver 已存在，跳过"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.ver.outputs.skip == 'false'
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run build
+
+      - name: Package
+        if: steps.ver.outputs.skip == 'false'
+        run: cd dist && zip -r "../${{ steps.ver.outputs.zip }}" .
+
+      - name: Publish
+        if: steps.ver.outputs.skip == 'false'
+        run: |
+          gh release create "${{ steps.ver.outputs.tag }}" "${{ steps.ver.outputs.zip }}" \
+            --target "$GITHUB_SHA" \
+            --title "XAnimeLens ${{ steps.ver.outputs.tag }}" \
+            --generate-notes
