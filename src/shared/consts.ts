@@ -111,6 +111,8 @@ export class Dom {
   /** 写在 <html> 上：当前接管页面的实例，其余实例自行停止 */
   static readonly OWNER_ATTR = 'data-xal-owner';
   static readonly MATCHES = ['https://x.com/*', 'https://twitter.com/*'];
+  /** 识别按钮上拦截的指针事件：避免冒泡到播放器触发暂停/播放切换 */
+  static readonly GUARD_EVTS = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'dblclick'];
 }
 
 export class Page {

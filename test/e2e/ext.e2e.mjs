@@ -46,12 +46,17 @@ class E2e {
     await p.goto('https://x.com/home');
     await p.waitForFunction(() => document.querySelector('video').readyState >= 2);
     await p.evaluate(() => (document.querySelector('video').currentTime = 3));
+    await p.evaluate(() => document.querySelector('video').play());
     await p.waitForTimeout(500);
 
     await p.locator('.xal-btn').click(); // playwright 可穿透 open shadow root
     const t0 = Date.now();
     const card = p.locator('.xal-card');
     await card.waitFor();
+    // 点击识别不应暂停视频
+    if (await p.evaluate(() => document.querySelector('video').paused)) {
+      throw new Error(`[${cors ? 'cors-video' : 'direct-src'}] video paused after recognize click`);
+    }
     await p.waitForFunction(
       () => {
         const c = document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-card');

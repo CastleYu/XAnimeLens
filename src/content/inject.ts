@@ -83,12 +83,14 @@ export class Inject {
       e.preventDefault();
       void Inject.run(el, btn);
     });
+    // 播放器在指针按下/抬起时切换播放状态，按钮上的事件不外传，识别时视频保持原状态
+    Dom.GUARD_EVTS.forEach((t) => btn.addEventListener(t, (e) => e.stopPropagation()));
 
     root.append(btn);
     el.append(host);
   }
 
-  /** 点击流程：暂停 → 截帧 → 识别 → 渲染；异常显示可重试卡片 */
+  /** 点击流程：截帧（不暂停播放）→ 识别 → 渲染；异常显示可重试卡片 */
   static async run(el: HTMLElement, btn: HTMLButtonElement): Promise<void> {
     const video = el.querySelector('video');
     if (!video) {
@@ -97,10 +99,11 @@ export class Inject {
     }
     Inject.busy(btn, true);
     try {
-      video.pause();
+      // 先同步截取点击瞬间的帧，再显示加载卡片，视频继续播放
+      const job = Capture.frame(video);
       Card.loading();
-      const img = await Capture.frame(video);
       const url = Inject.tweetUrl(el);
+      const img = await job;
       // 先返回的来源先展示，后续来源返回后重新合并渲染
       await Bus.stream(img, (data, done) => Card.render(data, url, img, done));
     } catch (e) {
