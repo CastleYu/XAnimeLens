@@ -2,6 +2,9 @@
   "name": "x-anime-lens",
   "version": "0.3.8",
   "private": true,
+  "description": "Identify anime in videos and images on X (trace.moe + AnimeTrace + Bangumi).",
+  "license": "MIT",
+  "repository": "github:CastleYu/XAnimeLens",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

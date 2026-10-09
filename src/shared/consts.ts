@@ -16,7 +16,7 @@ export class Api {
   static readonly BGM_CN_KEY = '简体中文名';
   static readonly BGM_ANIME_TYPE = 2;
   static readonly BGM_LIMIT = 10;
-  static readonly UA = 'xanimelens/0.1 (https://github.com/)';
+  static readonly UA = 'xanimelens (https://github.com/CastleYu/XAnimeLens)';
   static readonly AT_SEARCH = 'https://api.animetrace.com/v1/search';
 }
 
@@ -197,7 +197,7 @@ export class RecogDef {
   static readonly KW_MAX = 3;
 }
 
-/** 识别按钮与浮动卡片的 DOM 类名（Temp/card-dom.md 契约） */
+/** 识别按钮与浮动卡片的 DOM 类名（结构见 src/content/card.ts） */
 export class CardDom {
   static readonly BTN_HOST = 'xal-btn-host';
   static readonly BTN = 'xal-btn';

@@ -76,7 +76,7 @@ export class Card {
     }
   }
 
-  /** 单条结果 DOM（结构见 Temp/card-dom.md；hit 为空表示仅 AnimeTrace 角色识别） */
+  /** 单条结果 DOM（hit 为空表示仅 AnimeTrace 角色识别） */
   static item(it: CardItem, min: number, tweetUrl: string, input = ''): HTMLLIElement {
     const r = it.recog;
     const h = r.hit;
