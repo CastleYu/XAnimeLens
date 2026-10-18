@@ -883,3 +883,71 @@ button.xal-cmp-btn {
     opacity: 0.4;
   }
 }
+
+/* --------------------------------------------------------------------------
+   头部服务角标：服务图标 + 右下角红绿状态点
+   -------------------------------------------------------------------------- */
+.xal-svrs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.xal-svr {
+  --xal-svr-c: #8b949e;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.2px;
+  color: var(--xal-svr-c);
+  background: color-mix(in srgb, var(--xal-svr-c) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--xal-svr-c) 40%, transparent);
+  cursor: help;
+  transition: opacity 0.2s ease;
+}
+
+.xal-svr[data-svr='tracemoe'] { --xal-svr-c: #a78bfa; }
+.xal-svr[data-svr='anilist'] { --xal-svr-c: #3db4f2; }
+.xal-svr[data-svr='animetrace'] { --xal-svr-c: #f5a524; }
+.xal-svr[data-svr='bangumi'] { --xal-svr-c: #f09199; }
+
+.xal-svr-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #606773;
+  box-shadow: 0 0 0 2px #14171c;
+}
+
+.xal-svr[data-state='ok'] .xal-svr-dot { background: #3fb950; }
+.xal-svr[data-state='fail'] .xal-svr-dot { background: #ef4444; }
+.xal-svr[data-state='wait'] .xal-svr-dot { animation: xal-pulse 1.2s ease-in-out infinite; }
+.xal-svr[data-state='off'] { opacity: 0.4; }
+
+/* 不可用的服务提示 */
+.xal-note.xal-note-fail {
+  color: #f0a3a3;
+}
+
+/* 角色无头像：首字占位，保持与有头像的角色同高对齐 */
+.xal-char-av.xal-char-ini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--xal-text-muted, #8b949e);
+}

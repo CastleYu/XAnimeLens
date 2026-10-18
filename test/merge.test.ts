@@ -4,6 +4,7 @@ import { Bangumi } from '../src/api/bangumi';
 import { TraceMoe } from '../src/api/tracemoe';
 import { Matcher } from '../src/core/match';
 import { Recognizer } from '../src/core/recognize';
+import { Health } from '../src/core/svrs';
 import { ErrCode, Src } from '../src/shared/consts';
 import { AppErr } from '../src/shared/err';
 import type { AtResp, BgmSubject, Cfg, Recog, TmHit, TmResp } from '../src/shared/types';
@@ -41,7 +42,10 @@ function bgm(): void {
   vi.spyOn(Bangumi, 'subject').mockImplementation(async (id: number) => [s1, s2, kon].find((s) => s.id === id)!);
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  Health.reset();
+});
 
 describe('Recognizer 多来源合并', () => {
   it('同系列合并到 trace.moe 结果：保留第二季，追加来源与角色', async () => {
@@ -133,9 +137,9 @@ describe('Recognizer.stream 先返回先展示', () => {
     vi.spyOn(AnimeTrace, 'search').mockReturnValue(a.p);
     const seen: { srcs: string[][]; pending: string[]; done: boolean }[] = [];
     const run = Recognizer.stream(img, cfg, (r, done) => {
-      seen.push({ srcs: r.items.map((i) => i.srcs), pending: r.pending, done });
+      if (r.items.length) seen.push({ srcs: r.items.map((i) => i.srcs), pending: r.pending, done });
     });
-    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    await vi.waitFor(() => expect(seen.length).toBeGreaterThanOrEqual(1));
     expect(seen[0]).toEqual({ srcs: [[Src.TM]], pending: [Src.AT], done: false });
     a.ok(at([['ご注文はうさぎですか？', '天々座理世']]));
     await run;
@@ -149,16 +153,16 @@ describe('Recognizer.stream 先返回先展示', () => {
     vi.spyOn(AnimeTrace, 'search').mockResolvedValue(at([['ご注文はうさぎですか？', '天々座理世']]));
     const seen: { hits: boolean[]; pending: string[]; done: boolean }[] = [];
     const run = Recognizer.stream(img, cfg, (r, done) => {
-      seen.push({ hits: r.items.map((i) => i.hit != null), pending: r.pending, done });
+      if (r.items.length) seen.push({ hits: r.items.map((i) => i.hit != null), pending: r.pending, done });
     });
-    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    await vi.waitFor(() => expect(seen.length).toBeGreaterThanOrEqual(1));
     expect(seen[0]).toEqual({ hits: [false], pending: [Src.TM], done: false });
     t.ok(tm([hit]));
     await run;
     expect(seen.at(-1)).toEqual({ hits: [true], pending: [], done: true });
   });
 
-  it('先返回的来源没有结果时不推送空列表', async () => {
+  it('先返回的来源没有结果时只推送服务状态（空列表）', async () => {
     bgm();
     const t = defer<TmResp>();
     vi.spyOn(TraceMoe, 'search').mockReturnValue(t.p);
@@ -168,9 +172,10 @@ describe('Recognizer.stream 先返回先展示', () => {
       seen.push(r.items.length);
     });
     await new Promise((r) => setTimeout(r, 10));
-    expect(seen).toEqual([]);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((n) => n === 0)).toBe(true);
     t.ok(tm([hit]));
     await run;
-    expect(seen).toEqual([1]); // 最后一个来源返回时只推送一次最终结果
+    expect(seen.at(-1)).toBe(1);
   });
 });

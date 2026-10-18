@@ -86,8 +86,11 @@ class E2e {
     const imgs = await p.locator('.xal-cover').first().getAttribute('src');
     console.log(`[${tag}] ok: ${title} ${sim} cover=${imgs ? imgs.slice(0, 22) : 'none'}`);
     const srcs = await p.locator('.xal-item').first().locator('.xal-src').allTextContents();
-    const chip = p.locator('.xal-char[href]').first();
+    // Bangumi 不可用时角色只显示名字（无角色页链接），以头部角标为准
+    const bgmDown = (await p.locator('.xal-svr[data-svr="bangumi"]').getAttribute('data-state')) === 'fail';
+    const chip = p.locator(bgmDown ? '.xal-char:not(.xal-char-load)' : '.xal-char[href]').first();
     await chip.waitFor({ timeout: 20000 });
+    if (bgmDown) console.log(`[${tag}] Bangumi 不可用，跳过角色页链接检查`);
     await chip.locator('img').waitFor({ timeout: 20000 }).catch(() => {});
     await p.locator('.xal-chars').first().screenshot({ path: `${out}/chars-${cors ? 'cors-video' : 'direct-src'}.png` });
     const chars = `${await chip.textContent()} → ${await chip.getAttribute('href')} avatar=${(await chip.locator('img').count()) > 0}`;
@@ -314,6 +317,54 @@ class Photo {
   }
 }
 
+/** Bangumi 挂掉（请求一直无响应）：结果应先展示，Bangumi 角标变红，角色占位对齐 */
+class Down {
+  static async run() {
+    const ctx = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      headless: true,
+      viewport: { width: 1280, height: 1000 },
+      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+    });
+    await ctx.route('https://x.com/**', (r) => r.fulfill({ contentType: 'text/html', body: Photo.html() }));
+    await ctx.route('https://pbs.twimg.com/**', (r) =>
+      r.fulfill({ contentType: 'image/jpeg', body: poster, headers: { 'access-control-allow-origin': '*' } }),
+    );
+    let bgm = 0;
+    await ctx.route('https://api.bgm.tv/**', () => void bgm++); // 不响应，模拟服务挂起
+    if (!ctx.serviceWorkers().length) await ctx.waitForEvent('serviceworker');
+    const p = await ctx.newPage();
+    await p.goto('https://x.com/home');
+    const btn = p.locator('[data-testid="tweetPhoto"]:not(#gif):not(#small) .xal-btn').first();
+    await btn.waitFor();
+    await btn.click();
+    const t0 = Date.now();
+    await p.locator('.xal-card[data-state="ok"]').waitFor({ timeout: 60000 });
+    const first = Date.now() - t0;
+    const svr = (s) => p.locator(`.xal-svr[data-svr="${s}"]`).getAttribute('data-state');
+    const atFirst = await svr('bangumi');
+    await p.locator('.xal-svr[data-svr="bangumi"][data-state="fail"]').waitFor({ timeout: 30000 });
+    await p.waitForFunction(
+      () => !document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-pending, .xal-char-load'),
+      null,
+      { timeout: 30000 },
+    );
+    const done = Date.now() - t0;
+    await p.locator('.xal-card').screenshot({ path: `${out}/card-bgm-down.png` });
+    const tm = await svr('tracemoe');
+    if (tm !== 'ok') throw new Error(`[bgm-down] trace.moe 状态 ${tm}`);
+    const chips = await p.locator('.xal-char').count();
+    const avs = await p.locator('.xal-char > .xal-char-av').count();
+    if (chips !== avs) throw new Error(`[bgm-down] 角色头像位缺失 ${avs}/${chips}`);
+    const hs = await p.locator('.xal-char').evaluateAll((els) => [...new Set(els.map((e) => e.getBoundingClientRect().height))]);
+    if (hs.length > 1) throw new Error(`[bgm-down] 角色标签高度不一致 ${hs.join(',')}`);
+    const note = (await p.locator('.xal-note-fail').allTextContents()).join(' | ');
+    console.log(`[bgm-down] first ${first}ms (bangumi=${atFirst}), done ${done}ms, bgm requests=${bgm}, chips=${chips}, note=${note}`);
+    if (!bgm) throw new Error('[bgm-down] 未拦截到 Bangumi 请求（service worker 请求未经过 route）');
+    await ctx.close();
+  }
+}
+
 // 可选参数只跑部分场景（节省 trace.moe 额度）：node test/e2e/ext.e2e.mjs photo
 const only = process.argv[2];
 if (!only || only === 'video') {
@@ -328,4 +379,5 @@ if (!only || only === 'photo') {
   await Photo.run('cors');
   await Photo.run('shot');
 }
+if (!only || only === 'down') await Down.run();
 console.log('E2E PASS');

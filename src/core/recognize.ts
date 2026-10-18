@@ -1,9 +1,11 @@
 import { AnimeTrace } from '../api/animetrace';
 import { Bangumi } from '../api/bangumi';
 import { TraceMoe } from '../api/tracemoe';
-import { Def, ErrCode, RecogDef, Src } from '../shared/consts';
+import { Def, ErrCode, RecogDef, Src, Svr, SvrTxt } from '../shared/consts';
 import { AppErr } from '../shared/err';
 import { Matcher } from './match';
+import { Metas } from './meta';
+import { Svrs } from './svrs';
 import type {
   AtWork,
   BgmSubject,
@@ -11,6 +13,7 @@ import type {
   Recog,
   RecogResult,
   SrcErr,
+  SvrStat,
   TmAnilist,
   TmHit,
   TmResp,
@@ -20,8 +23,9 @@ import type {
 export type Emit = (r: RecogResult, done: boolean) => void | Promise<void>;
 
 /**
- * 并行调用各来源，先返回的先推送：trace.moe 给出集数与时间，AnimeTrace 补充角色并作为独立佐证。
- * 每个来源返回后都会按当前已有数据重新合并一次并推送。
+ * 并行调用各来源，先返回的先推送：trace.moe 给出集数与时间（含 AniList 信息），AnimeTrace 补充角色并作为独立佐证。
+ * Bangumi 补全在识别结果展示之后异步进行，每返回一条都按当前已有数据重新合并并推送；
+ * 某个服务挂掉只影响它自己的那部分信息，并记录在 svrs 中供卡片显示。
  */
 export class Recognizer {
   /** 一次性返回最终结果（测试与非流式调用使用） */
@@ -34,63 +38,111 @@ export class Recognizer {
   }
 
   static async stream(img: Blob, cfg: Cfg, emit: Emit): Promise<void> {
-    const st: State = { tm: null, tr: null, works: null, named: new Map(), errs: [], ai: undefined };
+    const st: State = {
+      hits: null,
+      tr: null,
+      works: null,
+      bgm: new Map(),
+      named: new Map(),
+      errs: [],
+      ai: undefined,
+      svrs: Svrs.init(cfg.at),
+    };
     const pending = new Set<Src>([Src.TM]);
     if (cfg.at) pending.add(Src.AT);
+    const looks: Promise<void>[] = []; // 进行中的 Bangumi 补全
+    let left = 0;
     let tmErr: unknown = null;
     let q: Promise<void> = Promise.resolve();
-    // 串行推送，保证顺序；最终结果由末尾单独推送
+    // 串行推送，保证顺序；全部结束后的最终结果由末尾单独推送
     const push = (): Promise<void> => {
-      if (!pending.size) return q;
+      if (!pending.size && !left) return q;
       const r = Recognizer.compose(st, [...pending]);
-      if (!r.items.length) return q; // 没有可展示的结果时不打断加载态
       q = q.then(() => emit(r, false));
       return q;
     };
+    // Bangumi 补全不阻塞展示：先推送已有数据，每条补全返回后再推送一次
+    const look = (run: () => Promise<BgmSubject | null>, put: (b: BgmSubject | null) => void): void => {
+      left++;
+      const p = run().then(
+        (b) => {
+          put(b);
+          Svrs.ok(st.svrs, Svr.BGM);
+        },
+        (e) => {
+          put(null);
+          Svrs.fail(st.svrs, Svr.BGM, e);
+        },
+      );
+      looks.push(
+        p.then(() => {
+          left--;
+          return push();
+        }),
+      );
+    };
 
+    void push(); // 先推送一次各服务的等待状态
     const tmP = TraceMoe.search(img, cfg.tmKey).then(
-      async (tr) => {
+      (tr) => {
         st.tr = tr;
-        st.tm = await Recognizer.tm(tr, cfg);
+        st.hits = Recognizer.tm(tr, cfg, st.svrs);
+        Svrs.ok(st.svrs, Svr.TM);
         pending.delete(Src.TM);
-        await push();
+        for (const h of st.hits) look(() => Recognizer.bgm(h.anilist, cfg.bgmToken), (b) => st.bgm.set(h.anilist.id, b));
+        return push();
       },
       (e) => {
         tmErr = e;
         st.errs.push(Recognizer.err(Src.TM, e));
+        Svrs.fail(st.svrs, Svr.TM, e);
+        Svrs.off(st.svrs, Svr.AL); // AniList 数据随 trace.moe 返回
         pending.delete(Src.TM);
+        return push();
       },
     );
     const atP = cfg.at
       ? AnimeTrace.search(img).then(
-          async (r) => {
+          (r) => {
             st.ai = r.ai;
-            const works = AnimeTrace.group(r);
-            await Promise.all(
-              works.map(async (w) => st.named.set(w.work, await Recognizer.named(w.work, cfg.bgmToken))),
-            );
-            st.works = works;
+            st.works = AnimeTrace.group(r);
+            Svrs.ok(st.svrs, Svr.AT);
             pending.delete(Src.AT);
-            await push();
+            for (const w of st.works) look(() => Recognizer.named(w.work, cfg.bgmToken), (b) => st.named.set(w.work, b));
+            return push();
           },
           (e) => {
             st.errs.push(Recognizer.err(Src.AT, e));
+            Svrs.fail(st.svrs, Svr.AT, e);
             pending.delete(Src.AT);
+            return push();
           },
         )
       : Promise.resolve();
 
     await Promise.all([tmP, atP]);
+    await Promise.all(looks);
     await q;
+    Svrs.settle(st.svrs);
     const final = Recognizer.compose(st, []);
     // 只有 trace.moe 失败且没有别的结果可展示时才整体失败
-    if (!final.items.length && tmErr) throw tmErr;
+    if (!final.items.length && tmErr) {
+      await emit(final, false); // 先推送服务状态，卡片头部才能显示哪个服务挂了
+      throw tmErr;
+    }
     await emit(final, true);
   }
 
   /** 按当前已返回的数据合并出结果（不修改状态，可重复调用） */
   static compose(st: State, pending: Src[]): RecogResult {
-    const items: Recog[] = (st.tm ?? []).map((r) => ({ ...r, srcs: [...r.srcs], chars: [...r.chars] }));
+    const items: Recog[] = (st.hits ?? []).map((hit) => ({
+      hit,
+      bgm: st.bgm.get(hit.anilist.id) ?? null,
+      srcs: [Src.TM],
+      chars: [],
+      work: '',
+      unsure: false,
+    }));
     for (const w of st.works ?? []) Recognizer.merge(items, w, st.named.get(w.work) ?? null);
     return {
       items,
@@ -99,27 +151,28 @@ export class Recognizer {
       errs: [...st.errs],
       ai: st.ai,
       pending,
+      svrs: Svrs.copy(st.svrs),
     };
   }
 
-  /** trace.moe：阈值过滤、按 AniList 去重、取前 N，再补 Bangumi */
-  private static async tm(tr: TmResp, cfg: Cfg): Promise<Recog[]> {
-    const raw = tr.result ?? [];
+  /**
+   * trace.moe：阈值过滤、按 AniList 去重、取前 N。
+   * AniList 信息随 trace.moe 返回；缺失时（只给了 ID）补空条目并把 AniList 标为不可用。
+   */
+  private static tm(tr: TmResp, cfg: Cfg, svrs: SvrStat[]): TmHit[] {
+    let bare = false;
+    const raw = (tr.result ?? []).map((h) => {
+      if (h.anilist && typeof h.anilist === 'object') return h;
+      bare = true;
+      return { ...h, anilist: { ...Metas.NONE, id: Number(h.anilist) || 0 } };
+    });
+    if (bare) Svrs.fail(svrs, Svr.AL, SvrTxt.NO_INFO);
+    else Svrs.ok(svrs, Svr.AL);
     let hits = Recognizer.dedup(raw.filter((h) => h.similarity >= cfg.minSim)).slice(0, Def.TOP_N);
     if (!hits.length && raw.length) {
       hits = [[...raw].sort((a, b) => b.similarity - a.similarity)[0]];
     }
-    // 各条结果的 Bangumi 补全互不依赖，并行进行
-    return Promise.all(
-      hits.map(async (hit) => ({
-        hit,
-        bgm: await Recognizer.bgm(hit.anilist, cfg.bgmToken),
-        srcs: [Src.TM],
-        chars: [],
-        work: '',
-        unsure: false,
-      })),
-    );
+    return hits;
   }
 
   /** AnimeTrace 作品并入已有结果；同系列或同一 Bangumi 条目即合并，否则新增一条 */
@@ -144,28 +197,19 @@ export class Recognizer {
     return [...map.values()].sort((a, b) => b.similarity - a.similarity);
   }
 
-  /** Bangumi 任何异常都吞掉并返回 null */
+  /** 按 AniList 标题查 Bangumi；未找到返回 null，请求失败向上抛（用于标记服务状态） */
   private static async bgm(a: TmAnilist, token: string): Promise<BgmSubject | null> {
-    try {
-      for (const kw of Matcher.keywords(a).slice(0, RecogDef.KW_MAX)) {
-        const list = await Bangumi.search(kw, token);
-        const picked = Matcher.pick(a, list);
-        if (picked) return await Bangumi.subject(picked.id, token);
-      }
-    } catch {
-      return null;
+    for (const kw of Matcher.keywords(a).slice(0, RecogDef.KW_MAX)) {
+      const picked = Matcher.pick(a, await Bangumi.search(kw, token));
+      if (picked) return Bangumi.subject(picked.id, token);
     }
     return null;
   }
 
-  /** 仅凭作品名查 Bangumi（AnimeTrace 结果）；异常返回 null */
+  /** 仅凭作品名查 Bangumi（AnimeTrace 结果）；未找到返回 null，请求失败向上抛 */
   private static async named(work: string, token: string): Promise<BgmSubject | null> {
-    try {
-      const picked = Matcher.byName(work, await Bangumi.search(work, token));
-      return picked ? await Bangumi.subject(picked.id, token) : null;
-    } catch {
-      return null;
-    }
+    const picked = Matcher.byName(work, await Bangumi.search(work, token));
+    return picked ? Bangumi.subject(picked.id, token) : null;
   }
 
   static err(src: Src, e: unknown): SrcErr {
@@ -176,10 +220,12 @@ export class Recognizer {
 
 /** 单次识别过程中各来源已返回的数据 */
 interface State {
-  tm: Recog[] | null;
+  hits: TmHit[] | null;
   tr: TmResp | null;
   works: AtWork[] | null;
-  named: Map<string, BgmSubject | null>;
+  bgm: Map<number, BgmSubject | null>; // AniList ID → Bangumi 条目
+  named: Map<string, BgmSubject | null>; // AnimeTrace 作品名 → Bangumi 条目
   errs: SrcErr[];
   ai: boolean | undefined;
+  svrs: SvrStat[];
 }

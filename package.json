@@ -1,6 +1,6 @@
 {
   "name": "x-anime-lens",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "private": true,
   "description": "Identify anime in videos and images on X (trace.moe + AnimeTrace + Bangumi).",
   "license": "MIT",

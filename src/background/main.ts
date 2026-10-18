@@ -2,7 +2,8 @@ import { Img } from './img';
 import { Recognizer } from '../core/recognize';
 import { Chars } from '../core/chars';
 import { Store } from '../core/store';
-import { Api, Dom, ErrCode, Msg, Page, PortDef, PortMsg } from '../shared/consts';
+import { Health, Svrs } from '../core/svrs';
+import { Api, Dom, ErrCode, Msg, Page, PortDef, PortMsg, Svr, SvrDef, SvrTxt } from '../shared/consts';
 import { AppErr } from '../shared/err';
 import type { CardData, CardItem, CharInfo, Err, PortReq, PortRes, Recog, RecogResult, Req } from '../shared/types';
 
@@ -68,43 +69,49 @@ class Svc {
     try {
       const blob = await (await fetch(req.img)).blob();
       const cfg = await Store.cfg();
-      const imgs = new Map<string, Promise<string>>(); // 同一张图只拉一次
+      const pics = new Pics(); // 同一张图只拉一次
       await Recognizer.stream(blob, cfg, async (r, done) => {
-        post({ type: done ? PortMsg.DONE : PortMsg.PART, data: await Svc.card(r, imgs) });
+        post({ type: done ? PortMsg.DONE : PortMsg.PART, data: await Svc.card(r, pics, done) });
       });
     } catch (e) {
       post({ type: PortMsg.ERR, err: Svc.err(e) });
     }
   }
 
-  /** 识别结果 → 卡片数据：远程图片转 dataURL（X 的 CSP 禁止外链图片） */
-  static async card(out: RecogResult, imgs: Map<string, Promise<string>>): Promise<CardData> {
-    const data = (url: string): Promise<string> => {
-      if (!url) return Promise.resolve('');
-      if (!imgs.has(url)) imgs.set(url, Img.data(url));
-      return imgs.get(url)!;
-    };
+  /**
+   * 识别结果 → 卡片数据：远程图片转 dataURL（X 的 CSP 禁止外链图片）。
+   * 增量推送只等图片一小会儿，没到的留给下一次推送，避免慢图床拖住结果展示；最终推送等全部图片。
+   */
+  static async card(out: RecogResult, pics: Pics, done: boolean): Promise<CardData> {
     const items: CardItem[] = await Promise.all(
       out.items.map(async (recog: Recog): Promise<CardItem> => {
         const [cover, shot] = await Promise.all([
-          data(Svc.cover(recog)),
-          data(Svc.shot(recog.hit?.image ?? '')),
+          Svc.first(Svc.covers(recog), pics, done),
+          pics.get(Svc.shot(recog.hit?.image ?? ''), done),
         ]);
         return { recog, cover, shot, fav: await Store.has(Store.key(recog)) };
       }),
     );
-    return { items, quota: out.quota, quotaUsed: out.quotaUsed, errs: out.errs, ai: out.ai, pending: out.pending };
+    const svrs = Svrs.copy(out.svrs);
+    // AniList 封面加载失败也算 AniList 不可用
+    if (pics.failed(SvrDef.AL_HOST)) Svrs.fail(svrs, Svr.AL, SvrTxt.NO_IMG);
+    return { items, quota: out.quota, quotaUsed: out.quotaUsed, errs: out.errs, ai: out.ai, pending: out.pending, svrs };
   }
 
-  /** 封面优先级：bgm.common → bgm.large → anilist.large */
-  static cover(r: Recog): string {
+  /** 按顺序取第一张成功的图（Bangumi 挂了就用 AniList 封面） */
+  static async first(urls: string[], pics: Pics, done: boolean): Promise<string> {
+    for (const u of urls) {
+      const d = await pics.get(u, done);
+      // 只在确认失败时换下一张；仍在加载则先留空，避免封面先 AniList 后 Bangumi 来回切换
+      if (d || !pics.bad.has(u)) return d;
+    }
+    return '';
+  }
+
+  /** 封面候选：bgm.common → bgm.large → anilist.large */
+  static covers(r: Recog): string[] {
     const b = r.bgm;
-    return (
-      b?.images?.common ||
-      b?.images?.large ||
-      r.hit?.anilist.coverImage?.large ||
-      ''
-    );
+    return [b?.images?.common, b?.images?.large, r.hit?.anilist.coverImage?.large].filter((u): u is string => !!u);
   }
 
   /** 给 trace.moe 截图 URL 追加 size=m（用 URL 对象正确处理已有 query） */
@@ -129,6 +136,8 @@ class Svc {
       const p = (async (): Promise<CharInfo | null> => {
         const cfg = await Store.cfg();
         const c = await Chars.find(name, subject, cfg.bgmToken);
+        // Bangumi 不可用时的“未找到”不可信，抛出以免缓存，恢复后可重新查询
+        if (!c && Health.down(Svr.BGM)) throw new AppErr(ErrCode.NETWORK, SvrTxt.DOWN);
         if (!c) return null;
         return { id: c.id, name: c.name, cn: Chars.cn(c), img: await Img.data(Chars.img(c)), url: Api.BGM_CHAR_SITE + c.id };
       })();
@@ -182,6 +191,33 @@ class Svc {
   static err(e: unknown): Err {
     if (e instanceof AppErr) return { code: e.code, msg: e.message };
     return { code: ErrCode.NETWORK, msg: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** 单次识别内的图片缓存：记录已失败的地址，增量推送时可限时等待 */
+class Pics {
+  map = new Map<string, Promise<string>>();
+  bad = new Set<string>();
+
+  /** wait 为 false 时最多等 IMG_WAIT_MS，未完成先返回空串 */
+  get(url: string, wait: boolean): Promise<string> {
+    if (!url) return Promise.resolve('');
+    if (!this.map.has(url)) {
+      this.map.set(
+        url,
+        Img.data(url).then((d) => {
+          if (!d) this.bad.add(url);
+          return d;
+        }),
+      );
+    }
+    const p = this.map.get(url)!;
+    if (wait) return p;
+    return Promise.race([p, new Promise<string>((ok) => setTimeout(() => ok(''), SvrDef.IMG_WAIT_MS))]);
+  }
+
+  failed(host: string): boolean {
+    return [...this.bad].some((u) => u.includes(host));
   }
 }
 

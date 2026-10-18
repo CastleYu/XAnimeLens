@@ -26,6 +26,40 @@ export enum Src {
   AT = 'animetrace',
 }
 
+/** 外部服务（卡片头部的可用性角标） */
+export enum Svr {
+  TM = 'tracemoe',
+  AL = 'anilist',
+  AT = 'animetrace',
+  BGM = 'bangumi',
+}
+
+/** 服务状态：等待中 / 可用 / 不可用 / 未请求或未启用 */
+export enum SvrState {
+  WAIT = 'wait',
+  OK = 'ok',
+  FAIL = 'fail',
+  OFF = 'off',
+}
+
+/** 服务可用性参数 */
+export class SvrDef {
+  static readonly ORDER = [Svr.TM, Svr.AL, Svr.AT, Svr.BGM];
+  /** Bangumi 单次请求超时 */
+  static readonly BGM_MS = 6000;
+  /** 图片下载超时 */
+  static readonly IMG_MS = 8000;
+  /** 增量推送时等待图片的最长时间，未到的图片留到下次推送 */
+  static readonly IMG_WAIT_MS = 600;
+  /** 判定不可用后的冷却期：期间直接失败，不再等待超时 */
+  static readonly DOWN_MS = 60000;
+  /** 视为服务故障的 HTTP 状态（4xx 中只有限流算故障） */
+  static readonly DOWN_HTTP = 500;
+  static readonly RATE_HTTP = 429;
+  /** AniList 封面所在域名 */
+  static readonly AL_HOST = 'anilist.co';
+}
+
 /** AnimeTrace 请求参数与状态码（https://www.animetrace.com/api-docs） */
 export class AtDef {
   static readonly FILE = 'file';
@@ -256,6 +290,16 @@ export class CardDom {
   static readonly CHAR_NAME = 'xal-char-name';
   static readonly CHAR_SUB = 'xal-char-sub';
   static readonly CHAR_LOAD = 'xal-char-load';
+  static readonly CHAR_INI = 'xal-char-ini';
+  static readonly SVRS = 'xal-svrs';
+  static readonly SVR = 'xal-svr';
+  static readonly SVR_DOT = 'xal-svr-dot';
+  static readonly NOTE_FAIL = 'xal-note-fail';
+  static readonly SVR_ATTR = 'data-svr';
+  static readonly STATE_ATTR = 'data-state';
+  static readonly ROLE_ATTR = 'role';
+  static readonly ROLE_IMG = 'img';
+  static readonly LABEL_ATTR = 'aria-label';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -323,6 +367,7 @@ export class Txt {
   static readonly EP = '第';
   static readonly EP_UNIT = '集';
   static readonly SEP = ' · ';
+  static readonly COLON = '：';
   static readonly BGM = '作品页';
   static readonly CHAR_PAGE = 'Bangumi 角色页';
   static readonly CLIP = '预览片段';
@@ -435,8 +480,40 @@ export class SrcTxt {
   static readonly ROLE_ONLY = '角色识别';
   static readonly UNSURE = '置信度低';
   static readonly AI = '疑似 AI 生成图';
-  static readonly FAILED = '未返回';
-  static readonly PENDING = '识别中…';
+}
+
+/** 服务角标文案 */
+export class SvrTxt {
+  static readonly NAME: Record<string, string> = {
+    [Svr.TM]: 'trace.moe',
+    [Svr.AL]: 'AniList',
+    [Svr.AT]: 'AnimeTrace',
+    [Svr.BGM]: 'Bangumi',
+  };
+  /** 角标图标里的缩写 */
+  static readonly ICON: Record<string, string> = {
+    [Svr.TM]: 'T',
+    [Svr.AL]: 'AL',
+    [Svr.AT]: 'A',
+    [Svr.BGM]: 'B',
+  };
+  static readonly STATE: Record<string, string> = {
+    [SvrState.WAIT]: '请求中',
+    [SvrState.OK]: '可用',
+    [SvrState.FAIL]: '不可用',
+    [SvrState.OFF]: '未请求',
+  };
+  /** 等待中时列表底部的提示（未列出的服务不提示） */
+  static readonly WAIT: Record<string, string> = {
+    [Svr.TM]: '识别中…',
+    [Svr.AT]: '识别中…',
+    [Svr.BGM]: '补全作品信息中…',
+  };
+  static readonly FAIL = '不可用';
+  static readonly DOWN = '暂时不可用，稍后自动重试';
+  static readonly NO_INFO = '未返回作品信息';
+  static readonly NO_IMG = '封面加载失败';
+  static readonly TIMEOUT = '请求超时';
 }
 
 /** AnimeTrace 上传文件名 */

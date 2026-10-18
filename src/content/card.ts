@@ -2,8 +2,8 @@ import css from './card.css';
 import { Bus } from './msg';
 import { Store } from '../core/store';
 import { Metas } from '../core/meta';
-import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, Txt } from '../shared/consts';
-import type { CardData, CardItem, CharInfo } from '../shared/types';
+import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, SvrDef, SvrState, SvrTxt, Txt } from '../shared/consts';
+import type { CardData, CardItem, CharInfo, SvrStat } from '../shared/types';
 
 /** 全局唯一浮动卡片（Shadow DOM）。 */
 export class Card {
@@ -11,6 +11,7 @@ export class Card {
   static card: HTMLElement | null = null;
   static list: HTMLUListElement | null = null;
   static quota: HTMLElement | null = null;
+  static svrBox: HTMLElement | null = null;
   static errMsg: HTMLElement | null = null;
   static retry: HTMLButtonElement | null = null;
   static minSim: number | null = null;
@@ -20,13 +21,14 @@ export class Card {
     Card.opened.clear();
     Card.clips.clear();
     Card.charInfos.clear();
-    Card.card!.setAttribute('data-state', CardState.LOADING);
+    Card.svrs(SvrDef.ORDER.map((svr) => ({ svr, state: SvrState.WAIT, msg: '' })));
+    Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.LOADING);
     Card.show(true);
   }
 
   static error(msg: string, retry: () => void | Promise<void>): void {
     Card.build();
-    Card.card!.setAttribute('data-state', CardState.ERR);
+    Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.ERR);
     Card.errMsg!.textContent = msg;
     Card.retry!.onclick = (e) => {
       e.stopPropagation();
@@ -44,6 +46,7 @@ export class Card {
 
   static async render(data: CardData, tweetUrl: string, input = '', done = true): Promise<void> {
     Card.build();
+    Card.svrs(data.svrs ?? []);
     const seq = ++Card.seq;
     if (!data.items.length) {
       if (!done) return; // 仍有来源在识别中，保持加载态
@@ -55,7 +58,7 @@ export class Card {
     Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl, input)));
     Card.notes(data);
     Card.quotaShow(data);
-    Card.card!.setAttribute('data-state', CardState.OK);
+    Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.OK);
     Card.show(true);
   }
 
@@ -195,7 +198,7 @@ export class Card {
       void Card.charInfos.get(key)!.then((c) => {
         chip.classList.remove(CardDom.CHAR_LOAD);
         if (!c) {
-          av.remove(); // 未在 Bangumi 找到，只保留名字
+          Card.initial(av, name); // 未在 Bangumi 找到（或 Bangumi 不可用）：保留头像位，与其它角色对齐
           return;
         }
         chip.href = c.url;
@@ -206,7 +209,7 @@ export class Card {
           img.alt = '';
           av.replaceWith(img);
         } else {
-          av.remove();
+          Card.initial(av, c.cn || c.name);
         }
         if (c.cn && c.cn !== c.name) {
           nm.textContent = c.cn;
@@ -215,6 +218,12 @@ export class Card {
       });
     }
     box.append(row);
+  }
+
+  /** 无头像时用名字首字占位 */
+  static initial(av: HTMLElement, name: string): void {
+    av.textContent = [...name.trim()][0] ?? '';
+    av.classList.add(CardDom.CHAR_INI);
   }
 
   /** 来源标签；多于一个来源时加“多源一致” */
@@ -226,14 +235,35 @@ export class Card {
     info.append(row);
   }
 
-  /** 列表底部提示：未返回的来源、AI 生成图判定 */
+  /** 列表底部提示：不可用 / 仍在请求的服务、AI 生成图判定 */
   static notes(data: CardData): void {
-    const lines = data.errs.map((e) => `${SrcTxt.NAME[e.src] ?? e.src} ${SrcTxt.FAILED}（${ErrText.MAP[e.code] ?? e.msg}）`);
-    if (data.ai) lines.push(SrcTxt.AI);
-    for (const t of lines) Card.list!.append(Card.mk('li', CardDom.NOTE, t));
-    for (const s of data.pending) {
-      Card.list!.append(Card.mk('li', `${CardDom.NOTE} ${CardDom.PENDING}`, `${SrcTxt.NAME[s] ?? s} ${SrcTxt.PENDING}`));
+    const add = (t: string, cls: string): void => void Card.list!.append(Card.mk('li', cls, t));
+    for (const x of data.svrs ?? []) {
+      const name = SvrTxt.NAME[x.svr] ?? x.svr;
+      if (x.state === SvrState.FAIL) add(`${name} ${SvrTxt.FAIL}${Txt.COLON}${x.msg}`, `${CardDom.NOTE} ${CardDom.NOTE_FAIL}`);
+      else if (x.state === SvrState.WAIT && SvrTxt.WAIT[x.svr]) add(`${name} ${SvrTxt.WAIT[x.svr]}`, `${CardDom.NOTE} ${CardDom.PENDING}`);
     }
+    if (data.ai) add(SrcTxt.AI, CardDom.NOTE);
+  }
+
+  /** 头部服务角标：图标 + 红绿状态点，悬停显示状态与原因 */
+  static svrs(list: SvrStat[]): void {
+    const box = Card.svrBox;
+    if (!box) return;
+    box.replaceChildren(
+      ...list.map((x) => {
+        const name = SvrTxt.NAME[x.svr] ?? x.svr;
+        const tip = `${name}${Txt.COLON}${SvrTxt.STATE[x.state]}${x.msg ? Txt.SEP + x.msg : ''}`;
+        const el = Card.mk('span', CardDom.SVR, SvrTxt.ICON[x.svr] ?? '');
+        el.setAttribute(CardDom.SVR_ATTR, x.svr);
+        el.setAttribute(CardDom.STATE_ATTR, x.state);
+        el.setAttribute(CardDom.ROLE_ATTR, CardDom.ROLE_IMG);
+        el.setAttribute(CardDom.LABEL_ATTR, tip);
+        el.title = tip;
+        el.append(Card.mk('span', CardDom.SVR_DOT));
+        return el;
+      }),
+    );
   }
 
   /** 作品信息：形式 / 季度 / 集数 / 原作 / R18 + 类型标签 + 制作与导演 */
@@ -348,10 +378,11 @@ export class Card {
     const head = Card.mk('header', CardDom.HEAD);
     const quota = Card.mk('span', CardDom.QUOTA);
     quota.hidden = true;
+    const svrBox = Card.mk('span', CardDom.SVRS);
     const close = Card.mk('button', CardDom.CLOSE, '×');
     close.type = 'button';
     close.title = Txt.CLOSE;
-    head.append(Card.mk('span', CardDom.LOGO, Txt.LOGO), quota, close);
+    head.append(Card.mk('span', CardDom.LOGO, Txt.LOGO), svrBox, quota, close);
 
     const body = Card.mk('div', CardDom.BODY);
     const loading = Card.mk('div', CardDom.LOADING);
@@ -379,6 +410,7 @@ export class Card {
     Card.card = card;
     Card.list = list;
     Card.quota = quota;
+    Card.svrBox = svrBox;
     Card.errMsg = errMsg;
     Card.retry = retry;
 

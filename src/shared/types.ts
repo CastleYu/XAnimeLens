@@ -1,4 +1,4 @@
-import type { ErrCode, Msg, PortMsg, Src } from './consts';
+import type { ErrCode, Msg, PortMsg, Src, Svr, SvrState } from './consts';
 
 /** trace.moe 原始结果（只列用到的字段） */
 export interface TmTitle {
@@ -139,6 +139,13 @@ export interface SrcErr {
   msg: string;
 }
 
+/** 一个外部服务在本次识别中的状态 */
+export interface SvrStat {
+  svr: Svr;
+  state: SvrState;
+  msg: string; // 失败原因（已本地化），其余状态为空串
+}
+
 export interface RecogResult {
   items: Recog[];
   quota?: number;
@@ -146,6 +153,7 @@ export interface RecogResult {
   errs: SrcErr[]; // 失败但不影响整体的来源
   ai?: boolean; // AnimeTrace 判定为 AI 生成图
   pending: Src[]; // 仍在识别中的来源（增量推送时非空）
+  svrs: SvrStat[]; // 各服务状态，按 SvrDef.ORDER 排列
 }
 
 /** 收藏集条目 */
@@ -219,6 +227,7 @@ export interface CardData {
   errs: SrcErr[];
   ai?: boolean;
   pending: Src[];
+  svrs: SvrStat[];
 }
 
 /** AnimeTrace 结果按作品聚合 */
