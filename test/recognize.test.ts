@@ -21,6 +21,7 @@ const hit = (id: number, similarity: number, title = 'N'): TmHit => ({
 });
 
 const isTm = (u: string) => u.includes('trace.moe');
+const isMe = (u: string) => u.includes('trace.moe/me');
 const isSearch = (u: string) => u.includes('/v0/search/subjects');
 const isSubject = (u: string) => u.includes('/v0/subjects/');
 
@@ -54,6 +55,27 @@ describe('Recognizer.run', () => {
     expect(out.items[0].bgm?.id).toBe(101);
     expect(out.quota).toBe(7);
     expect(out.quotaUsed).toBe(3);
+  });
+
+  it('先推送识别结果，额度随后以 /me 为准', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const fn = vi.fn(async (url: string) => {
+      if (isMe(url)) {
+        await gate;
+        return json({ id: '1', quota: 1000, quotaUsed: 4 });
+      }
+      if (isTm(url)) return json({ error: '', result: [hit(1, 0.99)], quota: 7, quotaUsed: 3 });
+      return json({ data: [] });
+    });
+    vi.stubGlobal('fetch', fn);
+    const seen: RecogResult[] = [];
+    const run = Recognizer.stream(img(), cfg, (r) => void seen.push(r));
+    await vi.waitFor(() => expect(seen.some((r) => r.items.length)).toBe(true));
+    expect(seen.find((r) => r.items.length)!.quota).toBe(7);
+    release();
+    await run;
+    expect(seen.at(-1)!).toMatchObject({ quota: 1000, quotaUsed: 4 });
   });
 
   it('全部低于 minSim 时保留相似度最高 1 条', async () => {

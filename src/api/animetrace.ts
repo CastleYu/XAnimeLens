@@ -1,4 +1,4 @@
-import { Api, AtDef, AtFile, ErrCode } from '../shared/consts';
+import { Api, AtDef, AtFile, ErrCode, SvrDef } from '../shared/consts';
 import { AppErr } from '../shared/err';
 import type { AtResp, AtWork } from '../shared/types';
 
@@ -11,9 +11,9 @@ export class AnimeTrace {
 
     let r: Response;
     try {
-      r = await fetch(Api.AT_SEARCH, { method: 'POST', body });
+      r = await fetch(Api.AT_SEARCH, { method: 'POST', body, signal: AbortSignal.timeout(SvrDef.AT_MS) });
     } catch (e) {
-      throw new AppErr(ErrCode.NETWORK, String(e));
+      throw AppErr.net(e);
     }
     if (r.status === 429 || r.status === 503) throw new AppErr(ErrCode.QUOTA);
 

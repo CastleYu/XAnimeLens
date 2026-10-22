@@ -54,8 +54,7 @@ export class Bangumi {
       r = await fetch(url, { ...init, signal: AbortSignal.timeout(SvrDef.BGM_MS) });
     } catch (e) {
       Health.fail(Svr.BGM);
-      const timeout = e instanceof Error && e.name === 'TimeoutError';
-      throw new AppErr(ErrCode.NETWORK, timeout ? SvrTxt.TIMEOUT : String(e));
+      throw AppErr.net(e);
     }
     if (!r.ok) {
       if (Health.bad(r.status)) Health.fail(Svr.BGM);

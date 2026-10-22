@@ -41,6 +41,7 @@ src/content/capture.ts    class Capture：截帧
 src/content/card.ts       class Card：Shadow DOM 浮动卡片
 src/content/card.css      卡片样式（esbuild 以文本导入）
 src/content/msg.ts        class Bus：runtime 消息与增量识别长连接
+src/content/lens.ts       右键识别入口，按需注入到被点击的 frame
 src/pages/collection.*    收藏集页面（列表、搜索、备注、导入导出、设置）
 test/*.test.ts            单元测试
 test/e2e/                 端到端测试与测试素材
@@ -128,6 +129,7 @@ class Csv {
 }
 ```
 - 收藏主键：有 AniList ID 时用它，否则用 `FavKey.BGM` / `FavKey.WORK` 前缀。
+- 存储：每条收藏单独保存在 `fav:<key>` 键下；旧的单一 `favs` 数组在首次读取时自动迁移。写入经过串行队列，并发编辑不会互相覆盖。同一作品两次收藏按 Bangumi ID（`bgmId`）合并，保留备注与原收藏时间。
 
 ### background/main.ts
 
@@ -137,6 +139,7 @@ class Csv {
 - `CLIP` / `PIC` / `CHAR`：后台下载 trace.moe 预览片段、跨域图片和角色头像（X 页面的 CSP 只允许 data: / blob: 媒体）。
 - `FAV_*` / `CFG_GET`：转发给 Store。`OPEN_COLLECTION` / `OPEN_SETTINGS` 与点击扩展图标：打开 `collection.html`。
 - 安装或更新后，向已打开的 X 标签页重新注入 `content.js`；旧实例通过 `Dom.OWNER_ATTR` 让位，失效按钮按 `Dom.INST_ATTR` 替换。
+- 右键识别（`contextMenus`）：`contextMenus.onClicked` → `scripting.executeScript` 仅向 `info.frameId` 注入 `lens.js` → 通过 `func` 调用在 `globalThis` 上设置钩子，传入 `srcUrl` / `mediaType` → `lens` 按 `src` 找到元素，截取画面帧或图片，经同一长连接流式识别，并渲染同样的卡片。收藏记录的来源链接为该页面地址。不会注入到其他网站。
 
 ### content/*
 

@@ -19,9 +19,10 @@ A Chrome extension that tells you which anime a video or image on X (x.com) come
 
 - A recognize button on every X video (top-right corner). The current frame is captured **without pausing playback**; videos that have not started loading are supported too. Tip: click on a frame without subtitles for better accuracy.
 - A recognize button on tweet images, including the full-screen viewer. The original full-size image is used, even for cropped timeline thumbnails. Images displayed smaller than 120×90 px get no button.
+- **Right-click on any website**: right-click an image or video and choose 「用 XAnimeLens 识别动漫」 in the context menu; the result card appears on that page. The recognition script is injected only into the page you right-click, and only when you click the menu item. Favorites saved this way record that page as their source.
 - The card header shows today's trace.moe quota (used in the last 24 h / daily limit, matching trace.moe's own sponsor page; reflects your API key when one is set).
 - From the card: save to collection, open Bangumi / AniList, and expand a side-by-side comparison of your frame and the matched clip.
-- **Collection page** (click the toolbar icon or "打开收藏集" on the card): search, notes, delete, export JSON / CSV, import JSON.
+- **Collection page** (click the toolbar icon or "打开收藏集" on the card): search, filter by kind and source, sort, notes (auto-saved), delete with Undo, export JSON / CSV, import JSON.
 - **Settings** (in the collection page): trace.moe API key (higher quota), minimum similarity, Bangumi access token, AnimeTrace on/off.
 - **Seamless updates** — after the extension is reloaded, open X tabs receive the new content script automatically; no page refresh needed.
 
@@ -55,6 +56,7 @@ No accounts, no analytics, no remote server of our own. Captured frames are sent
 | `npm run build` / `npm run watch` | Bundle into `dist/` |
 | `npm run check` | TypeScript type check |
 | `npm test` | Unit tests (vitest) |
+| `npm run e2e lens` | Fully offline end-to-end scenario; all external services are mocked |
 | `npm run e2e` | End-to-end: loads the extension into Chromium against a mocked x.com page and calls the real trace.moe and Bangumi APIs (needs network, uses 2 trace.moe quota; run `npx playwright install chromium` first) |
 
 Architecture, module contracts and coding conventions: [docs/DESIGN.md](docs/DESIGN.md).

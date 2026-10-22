@@ -42,6 +42,7 @@ src/content/capture.ts    class Capture: frame capture
 src/content/card.ts       class Card: floating card in Shadow DOM
 src/content/card.css      card styles (imported as text by esbuild)
 src/content/msg.ts        class Bus: runtime messages and the streaming port
+src/content/lens.ts       right-click entry, injected on demand into the clicked frame
 src/pages/collection.*    collection page (list, search, notes, import/export, settings)
 test/*.test.ts            unit tests
 test/e2e/                 end-to-end test and fixtures
@@ -129,6 +130,7 @@ class Csv {
 }
 ```
 - Favorite key: the AniList ID when available, otherwise prefixed with `FavKey.BGM` / `FavKey.WORK`.
+- Storage: each favorite is stored under its own key `fav:<key>`; the legacy single `favs` array migrates automatically on first read. Writes go through a serial queue so concurrent edits do not overwrite each other. Saving the same work twice merges by Bangumi ID (`bgmId`), keeping the note and the original save time.
 
 ### background/main.ts
 
@@ -138,6 +140,7 @@ class Csv {
 - `CLIP` / `PIC` / `CHAR`: download trace.moe preview clips, cross-origin images and character avatars in the background (X's CSP only allows data: / blob: media).
 - `FAV_*` / `CFG_GET`: forwarded to Store. `OPEN_COLLECTION` / `OPEN_SETTINGS` and the toolbar icon open `collection.html`.
 - On install / update, `content.js` is re-injected into open X tabs; old instances step aside via `Dom.OWNER_ATTR`, and their stale buttons are replaced by `Dom.INST_ATTR`.
+- Right-click recognition (`contextMenus`): `contextMenus.onClicked` → `scripting.executeScript` injects `lens.js` into `info.frameId` only → a `func` call sets a hook on `globalThis` with `srcUrl` / `mediaType` → `lens` finds the element by `src`, captures the frame or image, streams recognition over the same port and renders the same card. Favorites record the page URL as the source link. Nothing is injected into other sites.
 
 ### content/*
 

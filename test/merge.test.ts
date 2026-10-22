@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnimeTrace } from '../src/api/animetrace';
 import { Bangumi } from '../src/api/bangumi';
 import { TraceMoe } from '../src/api/tracemoe';
@@ -41,6 +41,11 @@ function bgm(): void {
   });
   vi.spyOn(Bangumi, 'subject').mockImplementation(async (id: number) => [s1, s2, kon].find((s) => s.id === id)!);
 }
+
+// 额度查询不走真实网络
+beforeEach(() => {
+  vi.spyOn(TraceMoe, 'me').mockResolvedValue(null);
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

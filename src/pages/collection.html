@@ -11,11 +11,16 @@
       <header id="col-head">
         <h1 id="col-title">XAnimeLens 收藏集</h1>
         <span id="col-count"></span>
-        <input id="col-search" type="search" placeholder="搜索标题 / 日文名 / 备注" />
+        <input id="col-search" type="search" placeholder="搜索标题 / 日文名 / 备注 / 角色" aria-label="搜索收藏" />
         <button id="col-export-json" type="button">导出 JSON</button>
         <button id="col-export-csv" type="button">导出 CSV</button>
         <button id="col-import-btn" type="button">导入 JSON</button>
         <input id="col-import-file" type="file" accept="application/json,.json" hidden />
+        <div id="col-filters">
+          <select id="col-f-kind"></select>
+          <select id="col-f-src"></select>
+          <select id="col-f-sort"></select>
+        </div>
       </header>
 
       <details id="col-settings">
@@ -45,6 +50,10 @@
       </details>
 
       <main id="col-grid"></main>
+      <div id="col-toast" role="status" aria-live="polite" hidden>
+        <span id="col-toast-msg"></span>
+        <button id="col-toast-act" type="button" hidden></button>
+      </div>
     </div>
     <script type="module" src="collection.js"></script>
   </body>

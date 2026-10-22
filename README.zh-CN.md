@@ -17,9 +17,10 @@
 
 - X 上每个视频右上角出现「识别」按钮，点击识别当前帧，**视频不会暂停**；视频尚未开始加载时也能识别。尽量在没有字幕遮挡的画面点击。
 - 推文图片（含点开后的大图）右上角同样有「识别」按钮，按原图识别（时间线里被裁切的缩略图也会取完整大图）；显示区域小于 120×90 的图片不显示按钮。
+- **任意网站右键识别**：右键图片或视频 →「用 XAnimeLens 识别动漫」，结果卡片直接出现在当前页面。只有点击菜单项时才会把识别脚本注入到你右键的页面；通过此方式收藏的作品，来源链接记录为该页面。
 - 卡片顶部显示 trace.moe 每日额度（最近 24 小时已用 / 每日上限，与 trace.moe 赞助页一致；填了 API Key 时显示该 Key 的额度）。
 - 卡片中可收藏、打开 Bangumi / AniList，并展开「输入帧 vs 匹配片段」对比。
-- **收藏集**（点击扩展图标或卡片底部「打开收藏集」）：搜索、备注、删除、导出 JSON / CSV、导入 JSON。
+- **收藏集**（点击扩展图标或卡片底部「打开收藏集」）：搜索、按作品形式与来源筛选、排序、备注（输入时自动保存）、删除（可撤销）、导出 JSON / CSV、导入 JSON。
 - **设置**（收藏集页）：trace.moe API Key（提高额度）、最低相似度、Bangumi Token、AnimeTrace 开关。
 - **无感升级**：在 `chrome://extensions` 刷新扩展后，已打开的 X 页面会自动注入新版本脚本，无需刷新页面。
 
@@ -53,6 +54,7 @@ npm run build
 | `npm run build` / `npm run watch` | 打包到 `dist/` |
 | `npm run check` | TypeScript 类型检查 |
 | `npm test` | 单元测试（vitest） |
+| `npm run e2e lens` | 完全离线的端到端场景，所有外部服务均为模拟（无需联网、不消耗额度） |
 | `npm run e2e` | 端到端：在 Chromium 中加载扩展、模拟 x.com 页面、真实调用 trace.moe 与 Bangumi（需联网，消耗 2 次 trace.moe 额度；首次需 `npx playwright install chromium`） |
 
 架构、模块契约与编码规范见 [docs/DESIGN.zh-CN.md](docs/DESIGN.zh-CN.md)。

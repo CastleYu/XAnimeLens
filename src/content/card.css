@@ -951,3 +951,30 @@ button.xal-cmp-btn {
   font-weight: 700;
   color: var(--xal-text-muted, #8b949e);
 }
+
+/* --------------------------------------------------------------------------
+   Accessibility
+   -------------------------------------------------------------------------- */
+.xal-card:focus {
+  outline: none;
+}
+
+.xal-card button:focus-visible,
+.xal-card a:focus-visible,
+.xal-btn:focus-visible {
+  outline: 2px solid var(--xal-accent);
+  outline-offset: 2px;
+}
+
+/* 仅供读屏的播报区 */
+.xal-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

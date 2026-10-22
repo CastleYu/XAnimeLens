@@ -3,23 +3,81 @@ import { AppErr } from '../shared/err';
 import { Metas } from './meta';
 import type { Cfg, Fav, FavExport, Recog } from '../shared/types';
 
-/** 本地收藏集与配置，存于 chrome.storage.local。 */
+/**
+ * 本地收藏集与配置，存于 chrome.storage.local。
+ * 每条收藏单独一个键（fav:<key>），写操作只读写自己的那一条，并在本上下文内串行执行，
+ * 避免“读出整表 → 改 → 写回”在并发时互相覆盖（例如补全标签与编辑备注同时发生）。
+ */
 export class Store {
+  /** 本上下文内的写操作队列 */
+  static q: Promise<unknown> = Promise.resolve();
+
+  static lock<T>(fn: () => Promise<T>): Promise<T> {
+    const p = Store.q.then(fn, fn);
+    Store.q = p.catch(() => {});
+    return p;
+  }
+
+  /** 收藏 key → 存储键 */
+  static id(key: string): string {
+    return Key.FAV + key;
+  }
+
+  /** 存储键变化是否涉及收藏（含旧版整表键） */
+  static touched(keys: string[]): boolean {
+    return keys.some((k) => k === Key.FAVS || k.startsWith(Key.FAV));
+  }
+
   static async all(): Promise<Record<string, Fav>> {
-    const r = await chrome.storage.local.get(Key.FAVS);
-    const v = r[Key.FAVS];
-    if (!v || typeof v !== 'object') return {};
+    await Store.migrate();
+    const r = await chrome.storage.local.get(null);
     // 逐条补齐缺省字段，兼容旧版本存下的数据
     const m: Record<string, Fav> = {};
-    for (const [k, o] of Object.entries(v as Record<string, unknown>)) {
+    for (const [k, o] of Object.entries(r)) {
+      if (!k.startsWith(Key.FAV)) continue;
       const f = Store.norm(o);
-      if (f) m[k] = f;
+      if (f) m[f.key] = f;
     }
     return m;
   }
 
-  static async put(m: Record<string, Fav>): Promise<void> {
-    await chrome.storage.local.set({ [Key.FAVS]: m });
+  /** 旧版（0.3.x 及之前）整表存于 favs：拆成逐条存储，已存在的条目不覆盖 */
+  static async migrate(): Promise<void> {
+    const r = await chrome.storage.local.get(Key.FAVS);
+    const v = r[Key.FAVS];
+    if (v === undefined) return;
+    const add: Record<string, Fav> = {};
+    if (v && typeof v === 'object') {
+      const ids = Object.values(v as Record<string, unknown>)
+        .map((o) => Store.norm(o))
+        .filter((f): f is Fav => !!f);
+      const have = await chrome.storage.local.get(ids.map((f) => Store.id(f.key)));
+      for (const f of ids) if (!(Store.id(f.key) in have)) add[Store.id(f.key)] = f;
+    }
+    if (Object.keys(add).length) await chrome.storage.local.set(add);
+    await chrome.storage.local.remove(Key.FAVS);
+  }
+
+  /** 整体替换收藏集 */
+  static put(m: Record<string, Fav>): Promise<void> {
+    return Store.lock(async () => {
+      const cur = await Store.all();
+      const gone = Object.keys(cur).filter((k) => !(k in m)).map(Store.id);
+      if (gone.length) await chrome.storage.local.remove(gone);
+      await Store.set(Object.values(m));
+    });
+  }
+
+  static async set(items: Fav[]): Promise<void> {
+    if (!items.length) return;
+    await chrome.storage.local.set(Object.fromEntries(items.map((f) => [Store.id(f.key), f])));
+  }
+
+  static async one(key: string): Promise<Fav | null> {
+    await Store.migrate();
+    const id = Store.id(key);
+    const r = await chrome.storage.local.get(id);
+    return Store.norm(r[id]);
   }
 
   /** 按收藏时间(savedAt)倒序 */
@@ -28,30 +86,52 @@ export class Store {
     return Object.values(m).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   }
 
-  /** 按 key 覆盖 */
-  static async add(f: Fav): Promise<void> {
-    const m = await Store.all();
-    m[f.key] = f;
-    await Store.put(m);
+  /**
+   * 收藏；与已有条目是同一作品（同 key 或同 Bangumi ID）时合并为一条，返回最终的 key。
+   * 合并时以带 trace.moe 命中（有集数时间）的一方为主，来源与角色取并集，保留原备注与收藏时间。
+   */
+  static add(f: Fav): Promise<string> {
+    return Store.lock(async () => {
+      const m = await Store.all();
+      const dup = Store.match(m, f.key, f.bgmId);
+      const out = dup ? Store.fuse(m[dup], f) : f;
+      if (dup && dup !== out.key) await chrome.storage.local.remove(Store.id(dup));
+      await Store.set([out]);
+      return out.key;
+    });
   }
 
-  static async del(key: string): Promise<void> {
-    const m = await Store.all();
-    delete m[key];
-    await Store.put(m);
+  /** 已收藏的同一作品：先按 key，再按 Bangumi ID；没有返回 null */
+  static match(m: Record<string, Fav>, key: string, bgmId: number | null): string | null {
+    if (Object.prototype.hasOwnProperty.call(m, key)) return key;
+    if (bgmId == null) return null;
+    return Object.values(m).find((f) => f.bgmId === bgmId)?.key ?? null;
+  }
+
+  /** 同一作品的两条收藏合并为一条 */
+  static fuse(old: Fav, neu: Fav): Fav {
+    const base = neu.anilistId || !old.anilistId ? neu : old;
+    const union = (a: string[], b: string[]): string[] => [...new Set([...a, ...b])];
+    return {
+      ...base,
+      bgmId: base.bgmId ?? old.bgmId ?? neu.bgmId,
+      srcs: union(old.srcs, neu.srcs),
+      chars: union(old.chars, neu.chars),
+      note: old.note || neu.note,
+      savedAt: old.key === neu.key ? neu.savedAt : old.savedAt,
+    };
+  }
+
+  static del(key: string): Promise<void> {
+    return Store.lock(() => chrome.storage.local.remove(Store.id(key)));
   }
 
   static async has(key: string): Promise<boolean> {
-    const m = await Store.all();
-    return Object.prototype.hasOwnProperty.call(m, key);
+    return (await Store.one(key)) != null;
   }
 
-  static async note(key: string, note: string): Promise<void> {
-    const m = await Store.all();
-    if (Object.prototype.hasOwnProperty.call(m, key)) {
-      m[key].note = note;
-      await Store.put(m);
-    }
+  static note(key: string, note: string): Promise<void> {
+    return Store.patch(key, { note });
   }
 
   /** 缺省值补全 */
@@ -105,17 +185,14 @@ export class Store {
   }
 
   /** 导入合并：已存在的 key 不覆盖，返回新增条数 */
-  static async merge(items: Fav[]): Promise<number> {
-    const m = await Store.all();
-    let n = 0;
-    for (const f of items) {
-      if (!Object.prototype.hasOwnProperty.call(m, f.key)) {
-        m[f.key] = f;
-        n++;
-      }
-    }
-    await Store.put(m);
-    return n;
+  static merge(items: Fav[]): Promise<number> {
+    return Store.lock(async () => {
+      const m = await Store.all();
+      const add = new Map<string, Fav>();
+      for (const f of items) if (!Object.prototype.hasOwnProperty.call(m, f.key) && !add.has(f.key)) add.set(f.key, f);
+      await Store.set([...add.values()]);
+      return add.size;
+    });
   }
 
   /** 收藏主键：有 AniList ID 用 ID（兼容旧数据），否则用 Bangumi ID 或作品名 */
@@ -185,10 +262,10 @@ export class Store {
   }
 
   /** 局部更新条目字段；条目不存在则忽略 */
-  static async patch(key: string, p: Partial<Fav>): Promise<void> {
-    const m = await Store.all();
-    if (!Object.prototype.hasOwnProperty.call(m, key)) return;
-    m[key] = { ...m[key], ...p };
-    await Store.put(m);
+  static patch(key: string, p: Partial<Fav>): Promise<void> {
+    return Store.lock(async () => {
+      const f = await Store.one(key);
+      if (f) await Store.set([{ ...f, ...p, key }]);
+    });
   }
 }

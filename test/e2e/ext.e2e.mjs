@@ -1,5 +1,5 @@
 // 端到端：加载 dist/ 扩展，在模拟的 x.com 页面上识别视频、收藏，并检查收藏集页面与导出。
-// 用法：npm run build && npm run e2e   （需联网访问 trace.moe / Bangumi）
+// 用法：npm run build && npm run e2e   （需联网访问 trace.moe / Bangumi；lens 场景全部模拟，可离线：npm run e2e lens）
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -365,6 +365,236 @@ class Down {
   }
 }
 
+/**
+ * 右键识别（任意网站）+ 卡片无障碍 + 同作品去重 + 收藏集交互。
+ * 所有外部服务都用 route 模拟，不消耗 trace.moe 额度，结果确定。
+ */
+class Lens {
+  static SITE = 'https://example.test/page';
+  static IMG = 'https://img.example.test/a.jpg';
+  static VID = 'https://img.example.test/v.mp4';
+  static TITLE = '请问您今天要来点兔子吗？？';
+
+  static html() {
+    return `<!doctype html><html><body style="margin:0;background:#fff">
+<img id="pic" src="${Lens.IMG}" style="width:480px;height:270px;display:block">
+<video id="vid" src="${Lens.VID}" muted playsinline style="width:480px;height:270px"></video>
+</body></html>`;
+  }
+
+  static subject(id) {
+    const s2 = { id: 123568, name: 'ご注文はうさぎですか？？', name_cn: Lens.TITLE, date: '2015-10-10', platform: 'TV',
+      images: { common: 'https://lain.bgm.tv/c.jpg' }, rating: { score: 7.5 } };
+    if (id === 123568) return s2;
+    return { id, name: `作品${id}`, name_cn: `作品${id}`, date: '2009-04-02', platform: 'TV', images: { common: 'https://lain.bgm.tv/c.jpg' } };
+  }
+
+  static async mock(ctx) {
+    const json = (r, body) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    await ctx.route('https://example.test/**', (r) => r.fulfill({ contentType: 'text/html', body: Lens.html() }));
+    await ctx.route('https://img.example.test/**', (r) => {
+      const v = r.request().url().endsWith('.mp4');
+      return r.fulfill({ contentType: v ? 'video/mp4' : 'image/jpeg', body: v ? clip : poster, headers: { 'access-control-allow-origin': '*' } });
+    });
+    await ctx.route('https://api.trace.moe/**', (r) => {
+      const u = r.request().url();
+      if (u.includes('/me')) return json(r, { id: 'ip', quota: 100, quotaUsed: 5 });
+      if (u.includes('/search')) {
+        return json(r, { error: '', result: [{
+          anilist: { id: 21034, title: { native: 'ご注文はうさぎですか？？', chinese: Lens.TITLE }, isAdult: false, format: 'TV',
+            startDate: { year: 2015, month: 10 }, coverImage: { large: 'https://s4.anilist.co/c.jpg' }, siteUrl: 'https://anilist.co/anime/21034' },
+          filename: '', episode: 3, from: 60, to: 62, at: 61, similarity: 0.97,
+          video: 'https://api.trace.moe/video/x', image: 'https://api.trace.moe/image/x' }] });
+      }
+      const v = u.includes('/video/');
+      return r.fulfill({ contentType: v ? 'video/mp4' : 'image/jpeg', body: v ? clip : poster });
+    });
+    await ctx.route('https://s4.anilist.co/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: poster }));
+    await ctx.route('https://lain.bgm.tv/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: poster }));
+    await ctx.route('https://api.animetrace.com/**', (r) => json(r, { code: 0, ai: false, data: [
+      { box: [0, 0, 1, 1], not_confident: false, character: [{ work: 'ご注文はうさぎですか？', character: '香風智乃' }] }] }));
+    await ctx.route('https://api.bgm.tv/**', (r) => {
+      const u = new URL(r.request().url());
+      if (u.pathname === '/v0/search/subjects') return json(r, { data: [Lens.subject(123568)] });
+      if (u.pathname === '/v0/search/characters') return json(r, { data: [] });
+      if (u.pathname.endsWith('/characters')) return json(r, []);
+      const m = u.pathname.match(/^\/v0\/subjects\/(\d+)$/);
+      if (m) return json(r, Lens.subject(Number(m[1])));
+      return r.fulfill({ status: 404, body: '' });
+    });
+  }
+
+  /** 等卡片出结果（data-state 不再是 loading） */
+  static async settle(p) {
+    await p.waitForFunction(
+      () => {
+        const c = document.querySelector('#xal-host')?.shadowRoot?.querySelector('.xal-card');
+        return c && c.getAttribute('data-state') !== 'loading' && c.querySelector('.xal-list')?.getAttribute('aria-busy') !== 'true';
+      },
+      null,
+      { timeout: 30000 },
+    ).catch(async (e) => {
+      const st = await p.evaluate(() => {
+        const r = document.querySelector('#xal-host')?.shadowRoot;
+        return { host: !!r, state: r?.querySelector('.xal-card')?.getAttribute('data-state'), busy: r?.querySelector('.xal-list')?.getAttribute('aria-busy'),
+          err: r?.querySelector('.xal-err-msg')?.textContent, items: r?.querySelectorAll('.xal-item').length };
+      });
+      throw new Error(`[lens] 等待结果超时 ${JSON.stringify(st)} ${e.message}`);
+    });
+    const state = await p.locator('.xal-card').getAttribute('data-state');
+    if (state !== 'ok') throw new Error(`[lens] card state=${state} msg=${await p.locator('.xal-err-msg').textContent()}`);
+  }
+
+  static async run() {
+    const ctx = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      headless: true,
+      viewport: { width: 1280, height: 900 },
+      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+    });
+    await Lens.mock(ctx);
+    let [sw] = ctx.serviceWorkers();
+    if (!sw) sw = await ctx.waitForEvent('serviceworker');
+    const id = sw.url().split('/')[2];
+    const p = await ctx.newPage();
+    p.on('console', (m) => m.type() === 'error' && console.log(`[lens] page console: ${m.text()}`));
+    const dialogs = [];
+    ctx.on('page', (pg) => pg.on('dialog', (d) => (dialogs.push(d.message()), d.dismiss())));
+    p.on('dialog', (d) => (dialogs.push(d.message()), d.dismiss()));
+    await p.goto(Lens.SITE);
+    await p.waitForFunction(() => document.querySelector('#vid').readyState >= 2 && document.querySelector('#pic').complete);
+    if (await p.locator('.xal-btn').count()) throw new Error('[lens] 非 X 页面出现了识别按钮');
+
+    // 同一作品先以 AnimeTrace 单独收藏过（bgm- 主键）：卡片应显示已收藏
+    await sw.evaluate(async () => {
+      await chrome.storage.local.set({ 'fav:bgm-123568': { key: 'bgm-123568', anilistId: 0, bgmId: 123568, title: '旧条目',
+        native: '', cover: '', episode: '', at: 0, similarity: 0, tweetUrl: '', savedAt: '2020-01-01T00:00:00.000Z', note: '旧备注',
+        kind: '', genres: [], srcs: ['animetrace'], chars: ['香風智乃'] } });
+    });
+
+    const menu = (src, kind) =>
+      sw.evaluate(async ({ src, kind, site }) => {
+        const [tab] = await chrome.tabs.query({ url: site });
+        await self.__xalMenu({ menuItemId: 'xal-lens', srcUrl: src, mediaType: kind, frameId: 0, editable: false, pageUrl: site }, tab);
+      }, { src, kind, site: Lens.SITE });
+
+    // 图片
+    await menu(Lens.IMG, 'image');
+    await Lens.settle(p);
+    const title = await p.locator('.xal-title').first().textContent();
+    if (title !== Lens.TITLE) throw new Error(`[lens-image] 标题 ${title}`);
+    const a11y = await p.evaluate(() => {
+      const root = document.querySelector('#xal-host').shadowRoot;
+      const card = root.querySelector('.xal-card');
+      return {
+        role: card.getAttribute('role'),
+        label: card.getAttribute('aria-label'),
+        focus: document.activeElement?.id === 'xal-host' && !!root.activeElement,
+        close: root.querySelector('.xal-close').getAttribute('aria-label'),
+        live: root.querySelector('.xal-sr[aria-live="polite"]')?.textContent,
+        cmp: root.querySelector('.xal-cmp-btn')?.getAttribute('aria-expanded'),
+        pressed: root.querySelector('.xal-fav').getAttribute('aria-pressed'),
+      };
+    });
+    if (a11y.role !== 'dialog' || !a11y.label || !a11y.focus || !a11y.close || a11y.cmp !== 'false') {
+      throw new Error(`[lens-a11y] ${JSON.stringify(a11y)}`);
+    }
+    if (!/识别完成/.test(a11y.live ?? '')) throw new Error(`[lens-a11y] 未播报完成 ${a11y.live}`);
+    if (a11y.pressed !== 'true') throw new Error('[lens-dedupe] 同作品已以 bgm- 主键收藏，卡片未显示已收藏');
+    await p.locator('.xal-cmp-btn').first().click();
+    if ((await p.locator('.xal-cmp-btn').first().getAttribute('aria-expanded')) !== 'true') throw new Error('[lens-a11y] aria-expanded 未更新');
+    const quota = await p.locator('.xal-quota').textContent();
+    if (!quota.includes('5/100')) throw new Error(`[lens] 额度未以 /me 为准: ${quota}`);
+
+    // 取消收藏删除的是实际存储的 bgm- 条目；再收藏存为 trace.moe 条目
+    const fav = p.locator('.xal-fav').first();
+    await fav.click();
+    await p.waitForFunction(() => document.querySelector('#xal-host').shadowRoot.querySelector('.xal-fav').getAttribute('aria-pressed') === 'false');
+    await fav.click();
+    await p.waitForFunction(() => document.querySelector('#xal-host').shadowRoot.querySelector('.xal-fav').getAttribute('aria-pressed') === 'true');
+    const keys = await sw.evaluate(async () => Object.keys(await chrome.storage.local.get(null)).filter((k) => k.startsWith('fav:')));
+    if (keys.includes('fav:bgm-123568') || !keys.includes('fav:21034')) throw new Error(`[lens-dedupe] 存储键 ${keys.join(',')}`);
+    const saved = await sw.evaluate(async () => (await chrome.storage.local.get('fav:21034'))['fav:21034']);
+    if (saved.tweetUrl !== Lens.SITE) throw new Error(`[lens] 来源页面 ${saved.tweetUrl}`);
+
+    // Esc 关闭，焦点离开卡片
+    await p.keyboard.press('Escape');
+    if (await p.locator('#xal-host').isVisible()) throw new Error('[lens-a11y] Esc 未关闭卡片');
+    await p.screenshot({ path: `${out}/lens-closed.png` });
+
+    // 视频（无 crossorigin，走重新加载截帧）：AnimeTrace 合并到同一条
+    await menu(Lens.VID, 'video');
+    await Lens.settle(p);
+    if (!(await p.locator('#xal-host').isVisible())) throw new Error('[lens-video] 卡片未重新显示');
+    const srcs = await p.locator('.xal-item').first().locator('.xal-src').allTextContents();
+    if (!srcs.includes('AnimeTrace') || !srcs.includes('trace.moe')) throw new Error(`[lens-video] 来源 ${srcs.join('|')}`);
+    await p.locator('.xal-card').screenshot({ path: `${out}/lens-video.png` });
+    console.log(`[lens] image + video ok: ${title} | ${quota} | srcs=${srcs.join(',')}`);
+
+    // 收藏集：旧版整表数据迁移 + 补全、筛选、备注编辑不被重绘打断、删除撤销
+    await sw.evaluate(async () => {
+      const base = { native: '', cover: '', episode: '1', at: 10, similarity: 0.9, tweetUrl: '', note: '' };
+      await chrome.storage.local.set({ favs: {
+        legacy: { ...base, key: 'legacy', anilistId: 1, bgmId: 1424, title: '旧收藏', savedAt: '2020-01-01T00:00:00.000Z' },
+        old2: { ...base, key: 'old2', anilistId: 2, bgmId: null, title: '另一条', savedAt: '2019-01-01T00:00:00.000Z', kind: '剧场版', genres: ['日常'] },
+      } });
+    });
+    const col = await ctx.newPage();
+    col.on('dialog', (d) => (dialogs.push(d.message()), d.dismiss()));
+    await col.goto(`chrome-extension://${id}/collection.html`);
+    await col.locator('.col-card', { hasText: '旧收藏' }).locator('.col-kind').waitFor({ timeout: 15000 });
+    const left = await sw.evaluate(async () => 'favs' in (await chrome.storage.local.get('favs')));
+    if (left) throw new Error('[col] 旧版 favs 未迁移');
+    if ((await col.locator('.col-card').count()) !== 3) throw new Error(`[col] 条目数 ${await col.locator('.col-card').count()}`);
+
+    await col.locator('#col-f-kind').selectOption('剧场版');
+    const cnt = await col.locator('#col-count').textContent();
+    if ((await col.locator('.col-card').count()) !== 1 || !cnt.includes('显示 1')) throw new Error(`[col-filter] 形式筛选 ${cnt}`);
+    await col.locator('#col-f-kind').selectOption('');
+    await col.locator('#col-f-src').selectOption('multi');
+    const multi = await col.locator('.col-name').allTextContents();
+    if (multi.length !== 1 || multi[0] !== Lens.TITLE) throw new Error(`[col-filter] 多源筛选 ${multi.join('|')}`);
+    await col.locator('#col-f-src').selectOption('all');
+    await col.locator('#col-f-sort').selectOption('old');
+    const first = await col.locator('.col-name').first().textContent();
+    if (first !== '另一条') throw new Error(`[col-sort] 最早收藏排序首条 ${first}`);
+    await col.locator('#col-f-sort').selectOption('new');
+
+    // 编辑备注时别的条目更新（触发重绘），输入内容与焦点保留；停止输入后自动保存
+    const note = col.locator('.col-card', { hasText: '另一条' }).locator('.col-note');
+    await note.click();
+    await note.pressSequentially('正在输入');
+    await sw.evaluate(async () => {
+      const r = await chrome.storage.local.get('fav:legacy');
+      await chrome.storage.local.set({ 'fav:legacy': { ...r['fav:legacy'], note: '后台修改' } });
+    });
+    await col.waitForTimeout(300);
+    const kept = await col.evaluate(() => ({ v: document.activeElement?.value, cls: document.activeElement?.className }));
+    if (kept.v !== '正在输入' || kept.cls !== 'col-note') throw new Error(`[col-note] 重绘打断了输入 ${JSON.stringify(kept)}`);
+    await col.waitForTimeout(900);
+    const stored = await sw.evaluate(async () => (await chrome.storage.local.get('fav:old2'))['fav:old2'].note);
+    if (stored !== '正在输入') throw new Error(`[col-note] 自动保存 ${stored}`);
+    await col.locator('#col-search').click(); // 失焦后补上被推迟的重绘
+    await col.waitForFunction(
+      () => [...document.querySelectorAll('.col-card')].find((c) => c.textContent.includes('旧收藏'))?.querySelector('.col-note').value === '后台修改',
+      null,
+      { timeout: 5000 },
+    );
+
+    // 删除：无确认框，提示条可撤销
+    await col.locator('.col-card', { hasText: '另一条' }).locator('.col-del').click();
+    await col.locator('.col-card', { hasText: '另一条' }).waitFor({ state: 'detached' });
+    await col.locator('#col-toast-act').click();
+    await col.locator('.col-card', { hasText: '另一条' }).waitFor();
+    const restored = await col.locator('.col-card', { hasText: '另一条' }).locator('.col-note').inputValue();
+    if (restored !== '正在输入') throw new Error(`[col-undo] 恢复后备注 ${restored}`);
+    await col.screenshot({ path: `${out}/collection-lens.png`, fullPage: true });
+    if (dialogs.length) throw new Error(`[col] 出现了原生弹窗: ${dialogs.join(' | ')}`);
+    console.log('[lens] collection: migrate + filter + sort + note + undo ok');
+    await ctx.close();
+  }
+}
+
 // 可选参数只跑部分场景（节省 trace.moe 额度）：node test/e2e/ext.e2e.mjs photo
 const only = process.argv[2];
 if (!only || only === 'video') {
@@ -380,4 +610,5 @@ if (!only || only === 'photo') {
   await Photo.run('shot');
 }
 if (!only || only === 'down') await Down.run();
+if (!only || only === 'lens') await Lens.run();
 console.log('E2E PASS');

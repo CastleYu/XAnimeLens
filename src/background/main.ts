@@ -3,7 +3,7 @@ import { Recognizer } from '../core/recognize';
 import { Chars } from '../core/chars';
 import { Store } from '../core/store';
 import { Health, Svrs } from '../core/svrs';
-import { Api, Dom, ErrCode, Msg, Page, PortDef, PortMsg, Svr, SvrDef, SvrTxt } from '../shared/consts';
+import { Api, Dom, ErrCode, Media, Menu, Msg, Page, PortDef, PortMsg, Svr, SvrDef, SvrTxt, Txt } from '../shared/consts';
 import { AppErr } from '../shared/err';
 import type { CardData, CardItem, CharInfo, Err, PortReq, PortRes, Recog, RecogResult, Req } from '../shared/types';
 
@@ -21,16 +21,46 @@ class Svc {
       port.onMessage.addListener((req: PortReq) => void Svc.stream(port, req));
     });
     chrome.action.onClicked.addListener(() => void Svc.open());
-    chrome.runtime.onInstalled.addListener(() => void Svc.reinject());
+    chrome.runtime.onInstalled.addListener(() => {
+      Svc.menus();
+      void Svc.reinject();
+    });
+    chrome.contextMenus.onClicked.addListener((info, tab) => void Svc.menu(info, tab));
+    (self as unknown as Record<string, unknown>)[Menu.TEST_HOOK] = Svc.menu;
   }
+
+  /** 右键菜单：任意网页的图片 / 视频上“识别动漫” */
+  static menus(): void {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({ id: Menu.ID, title: Txt.MENU, contexts: Menu.CTX });
+    });
+  }
+
+  /** 点击右键菜单：向被点击的框架注入 lens.js，再调用它识别该媒体（卡片显示在该页面里） */
+  static async menu(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab): Promise<void> {
+    if (info.menuItemId !== Menu.ID || tab?.id == null || !info.srcUrl) return;
+    const target = { tabId: tab.id, frameIds: [info.frameId ?? 0] };
+    const kind = info.mediaType === Media.VIDEO ? Media.VIDEO : Media.IMAGE;
+    try {
+      await chrome.scripting.executeScript({ target, files: [Page.LENS_JS] });
+      await chrome.scripting.executeScript({ target, func: Svc.call, args: [Menu.HOOK, info.srcUrl, kind] });
+    } catch (e) {
+      // chrome:// 页面、应用商店等禁止注入的页面
+      console.warn('[XAnimeLens] context menu', e);
+    }
+  }
+
+  /** 在页面隔离环境中执行（会被序列化，只能用参数，不能引用外部变量） */
+  static readonly call = (hook: string, src: string, kind: string): void => {
+    (globalThis as unknown as Record<string, ((s: string, k: string) => void) | undefined>)[hook]?.(src, kind);
+  };
 
   static async route(req: Req, sender: chrome.runtime.MessageSender): Promise<unknown> {
     switch (req.type) {
       case Msg.CAPTURE:
         return Svc.capture(sender);
       case Msg.FAV_ADD:
-        await Store.add(req.fav);
-        return null;
+        return Store.add(req.fav);
       case Msg.FAV_DEL:
         await Store.del(req.key);
         return null;
@@ -83,13 +113,15 @@ class Svc {
    * 增量推送只等图片一小会儿，没到的留给下一次推送，避免慢图床拖住结果展示；最终推送等全部图片。
    */
   static async card(out: RecogResult, pics: Pics, done: boolean): Promise<CardData> {
+    const favs = await Store.all(); // 每次推送只读一次收藏集
     const items: CardItem[] = await Promise.all(
       out.items.map(async (recog: Recog): Promise<CardItem> => {
         const [cover, shot] = await Promise.all([
           Svc.first(Svc.covers(recog), pics, done),
           pics.get(Svc.shot(recog.hit?.image ?? ''), done),
         ]);
-        return { recog, cover, shot, fav: await Store.has(Store.key(recog)) };
+        const favKey = Store.match(favs, Store.key(recog), recog.bgm?.id ?? null) ?? '';
+        return { recog, cover, shot, fav: !!favKey, favKey };
       }),
     );
     const svrs = Svrs.copy(out.svrs);

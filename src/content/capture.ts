@@ -41,9 +41,9 @@ export class Capture {
     return Capture.fallback(video);
   }
 
-  /** 推文图片：页面内 crossOrigin 加载大图 → 后台下载 → 整页截图裁剪图片区域 */
-  static async photo(img: HTMLImageElement, el: Element): Promise<string> {
-    const url = Capture.big(img.currentSrc || img.src);
+  /** 图片：页面内 crossOrigin 加载（推文图片换大图）→ 后台下载 → 整页截图裁剪图片区域（el 为空则不裁剪，直接失败） */
+  static async photo(src: string, el: Element | null): Promise<string> {
+    const url = Capture.big(src);
     try {
       return await Capture.pic(url);
     } catch {
@@ -51,7 +51,8 @@ export class Capture {
     }
     try {
       return await Capture.pic(await Bus.send<string>({ type: Msg.PIC, url }));
-    } catch {
+    } catch (e) {
+      if (!el) throw e;
       return Capture.fallback(el);
     }
   }
@@ -60,7 +61,8 @@ export class Capture {
   static big(src: string): string {
     try {
       const u = new URL(src);
-      if (!u.searchParams.has(Dom.PIC_NAME)) return src;
+      // 只改推文图片；其它网站的 name 参数含义不同
+      if (u.hostname !== Dom.PIC_HOST || !u.searchParams.has(Dom.PIC_NAME)) return src;
       u.searchParams.set(Dom.PIC_NAME, Dom.PIC_SIZE);
       return u.toString();
     } catch {

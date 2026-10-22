@@ -2,7 +2,7 @@ import css from './card.css';
 import { Bus } from './msg';
 import { Capture } from './capture';
 import { Card } from './card';
-import { CardDom, Dom, ErrText, Msg, Txt } from '../shared/consts';
+import { Aria, CardDom, Dom, ErrText, Msg, Txt } from '../shared/consts';
 import type { CardData } from '../shared/types';
 
 /** 发现视频与图片、注入识别按钮。 */
@@ -104,6 +104,7 @@ export class Inject {
     btn.className = CardDom.BTN;
     btn.type = 'button';
     btn.title = Txt.BTN_TITLE;
+    btn.setAttribute(Aria.LABEL, Txt.BTN_TITLE);
     const label = document.createElement('span');
     label.textContent = Txt.BTN_IDLE;
     btn.append(Inject.icon(), label);
@@ -130,7 +131,7 @@ export class Inject {
     }
     Inject.busy(btn, true);
     try {
-      Card.loading();
+      Card.loading(btn);
       const url = Inject.tweetUrl(el);
       const img = await job;
       // 先返回的来源先展示，后续来源返回后重新合并渲染
@@ -148,7 +149,7 @@ export class Inject {
     const video = el.querySelector('video');
     if (video) return Capture.frame(video);
     const img = el.querySelector<HTMLImageElement>(Dom.PHOTO_IMG_SEL);
-    return img ? Capture.photo(img, el) : null;
+    return img ? Capture.photo(img.currentSrc || img.src, el) : null;
   }
 
   /** 推文链接：article 内 time 的最近 a[href] */
@@ -169,6 +170,7 @@ export class Inject {
 
   static busy(btn: HTMLButtonElement, on: boolean): void {
     btn.classList.toggle(CardDom.BTN_BUSY, on);
+    btn.setAttribute(Aria.BUSY, String(on));
     const label = btn.querySelector('span');
     if (label) label.textContent = on ? Txt.BTN_BUSY : Txt.BTN_IDLE;
   }
@@ -177,6 +179,7 @@ export class Inject {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', CardDom.ICO);
+    svg.setAttribute(Aria.HIDDEN, String(true));
     svg.setAttribute('viewBox', '0 0 24 24');
     const p = document.createElementNS(ns, 'path');
     p.setAttribute('d', Txt.MAG);

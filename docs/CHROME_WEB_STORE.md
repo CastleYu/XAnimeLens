@@ -19,6 +19,7 @@ Click "识别" (Recognize) on any video or image on X (x.com) to find out which 
 • Two independent sources in parallel: trace.moe (scene search: title, episode, timestamp, similarity, matching clip) and AnimeTrace (character recognition).
 • Results enriched with Bangumi: Chinese title, rating, format, season, genres, studio and staff.
 • Videos keep playing while you recognize; works on videos that have not loaded yet and on full-size tweet images.
+• Right-click any image or video on any website to identify it from the context menu.
 • Compare your frame with the matched clip side by side.
 • Save results to a local collection with notes; export JSON / CSV, import JSON.
 • Optional trace.moe API key and Bangumi token for higher quota.
@@ -48,7 +49,8 @@ Identify the source anime of videos and images on X (x.com) and let the user kee
 | `activeTab` | Fallback frame capture: takes a screenshot of the visible X tab with captureVisibleTab when a video frame cannot be read from the canvas. |
 | `tabs` | Finds open x.com / twitter.com tabs to re-inject the updated content script after the extension updates, and opens the collection page in a new tab. |
 | `scripting` | Re-injects the content script into already-open X tabs after install/update so the user does not have to reload the page. |
-| Host permissions | x.com / twitter.com: inject the recognize button. api.trace.moe, api.animetrace.com: send the captured frame for recognition. api.bgm.tv, lain.bgm.tv, s4.anilist.co: metadata and cover images. pbs.twimg.com and api.trace.moe previews: download tweet images and preview clips in the background because X's CSP blocks them in the page. |
+| `contextMenus` | Adds the "用 XAnimeLens 识别动漫" item to the right-click menu on images and videos. The recognition script is injected only into the page the user right-clicks, and only after the user chooses the item. |
+| Host permissions | x.com / twitter.com: inject the recognize button. api.trace.moe, api.animetrace.com: send the captured frame for recognition. api.bgm.tv, lain.bgm.tv, s4.anilist.co: metadata and cover images. pbs.twimg.com and api.trace.moe previews: download tweet images and preview clips in the background because X's CSP blocks them in the page. `<all_urls>`: used only to capture the frame or image and inject the recognition script into the page the user right-clicks, after the user chooses the context menu item. |
 | 远程代码 / Remote code | No. All code is bundled in the package; only JSON APIs and images/videos are fetched. |
 
 **数据使用 / Data usage** — 勾选：

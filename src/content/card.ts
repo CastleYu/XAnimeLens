@@ -2,7 +2,7 @@ import css from './card.css';
 import { Bus } from './msg';
 import { Store } from '../core/store';
 import { Metas } from '../core/meta';
-import { Api, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, SvrDef, SvrState, SvrTxt, Txt } from '../shared/consts';
+import { Api, Aria, CardDom, CardState, Def, Dom, ErrText, MetaTxt, Msg, SrcTxt, SvrDef, SvrState, SvrTxt, Txt } from '../shared/consts';
 import type { CardData, CardItem, CharInfo, SvrStat } from '../shared/types';
 
 /** 全局唯一浮动卡片（Shadow DOM）。 */
@@ -14,22 +14,31 @@ export class Card {
   static svrBox: HTMLElement | null = null;
   static errMsg: HTMLElement | null = null;
   static retry: HTMLButtonElement | null = null;
+  static live: HTMLElement | null = null;
   static minSim: number | null = null;
+  /** 打开卡片的控件（识别按钮）：关闭卡片后焦点回到这里 */
+  static opener: HTMLElement | null = null;
 
-  static loading(): void {
+  /** opener 为触发识别的控件；卡片打开后焦点移入卡片，Esc 关闭并把焦点还给 opener */
+  static loading(opener: HTMLElement | null = null): void {
     Card.build();
+    Card.opener = opener;
+    Card.say(Txt.LOADING);
     Card.opened.clear();
     Card.clips.clear();
     Card.charInfos.clear();
     Card.svrs(SvrDef.ORDER.map((svr) => ({ svr, state: SvrState.WAIT, msg: '' })));
     Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.LOADING);
+    Card.list!.setAttribute(Aria.BUSY, String(true));
     Card.show(true);
+    Card.card!.focus({ preventScroll: true });
   }
 
   static error(msg: string, retry: () => void | Promise<void>): void {
     Card.build();
     Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.ERR);
     Card.errMsg!.textContent = msg;
+    Card.list!.removeAttribute(Aria.BUSY);
     Card.retry!.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -56,6 +65,8 @@ export class Card {
     const min = await Card.min();
     if (seq !== Card.seq) return; // 已有更新的结果
     Card.list!.replaceChildren(...data.items.map((it) => Card.item(it, min, tweetUrl, input)));
+    Card.list!.setAttribute(Aria.BUSY, String(!done));
+    if (done) Card.say(Txt.DONE.replace(Txt.N, String(data.items.length)));
     Card.notes(data);
     Card.quotaShow(data);
     Card.card!.setAttribute(CardDom.STATE_ATTR, CardState.OK);
@@ -64,16 +75,17 @@ export class Card {
 
   /** 收藏 / 取消收藏 */
   static async toggle(item: CardItem, btn: HTMLButtonElement, tweetUrl: string): Promise<void> {
-    const key = Store.key(item.recog);
     try {
       if (item.fav) {
-        await Bus.send({ type: Msg.FAV_DEL, key });
+        await Bus.send({ type: Msg.FAV_DEL, key: item.favKey || Store.key(item.recog) });
         item.fav = false;
+        item.favKey = '';
       } else {
-        await Bus.send({ type: Msg.FAV_ADD, fav: Store.toFav(item.recog, tweetUrl) });
+        item.favKey = await Bus.send<string>({ type: Msg.FAV_ADD, fav: Store.toFav(item.recog, tweetUrl) });
         item.fav = true;
       }
       Card.fav(btn, item.fav);
+      Card.say(item.fav ? Txt.FAVED_SAY : Txt.UNFAVED_SAY);
     } catch (e) {
       Card.error(ErrText.of(e), () => void Card.toggle(item, btn, tweetUrl));
     }
@@ -134,14 +146,18 @@ export class Card {
 
     const cmp = Card.mk('div', CardDom.CMP);
     cmp.hidden = true;
+    cmp.id = CardDom.CMP_ID + ++Card.uid;
     if (input || h?.video) {
       const tog = Card.mk('button', `${CardDom.LINK} ${CardDom.CMP_BTN}`, Txt.CMP);
       tog.type = 'button';
+      tog.setAttribute(Aria.CONTROLS, cmp.id);
+      tog.setAttribute(Aria.EXPANDED, String(false));
       const key = Store.key(r);
       const flip = (open: boolean, scroll: boolean): void => {
         cmp.hidden = !open;
         tog.textContent = open ? Txt.CMP_OPEN : Txt.CMP;
         tog.classList.toggle(CardDom.ON, open);
+        tog.setAttribute(Aria.EXPANDED, String(open));
         if (open) Card.opened.add(key);
         else Card.opened.delete(key);
         if (open && !cmp.childElementCount) Card.cmp(cmp, input, h?.video ?? '', it.shot);
@@ -162,6 +178,7 @@ export class Card {
 
     const fav = Card.mk('button', CardDom.FAV);
     fav.type = 'button';
+    fav.setAttribute(Aria.LABEL, `${Txt.FAV_LABEL}${Txt.COLON}${title}`);
     Card.fav(fav, it.fav);
     fav.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -338,10 +355,31 @@ export class Card {
   static fav(btn: HTMLButtonElement, on: boolean): void {
     btn.textContent = on ? Txt.FAVED : Txt.FAV;
     btn.classList.toggle(CardDom.ON, on);
+    btn.setAttribute(Aria.PRESSED, String(on));
   }
+
+  /** 条目序号：生成卡片内唯一 id */
+  static uid = 0;
 
   static show(on: boolean): void {
     if (Card.host) Card.host.style.display = on ? '' : 'none';
+  }
+
+  /** 关闭卡片；焦点原本在卡片内时还给打开它的控件 */
+  static close(): void {
+    const inside = document.activeElement === Card.host;
+    Card.show(false);
+    Card.host?.shadowRoot?.querySelectorAll('video').forEach((v) => v.pause());
+    if (inside && Card.opener?.isConnected) Card.opener.focus({ preventScroll: true });
+  }
+
+  /** 读屏播报（礼貌模式，不打断） */
+  static say(text: string): void {
+    const live = Card.live;
+    if (!live) return;
+    live.textContent = '';
+    // 清空后再写入，相同文案也会重新播报
+    requestAnimationFrame(() => (live.textContent = text));
   }
 
   static async min(): Promise<number> {
@@ -356,7 +394,8 @@ export class Card {
   }
 
   static build(): void {
-    if (Card.host) return;
+    // 宿主可能被别的脚本实例（如右键识别注入的脚本）移除，此时重建
+    if (Card.host?.isConnected) return;
     document.getElementById(Dom.HOST_ID)?.remove(); // 旧实例留下的卡片
 
     const host = document.createElement('div');
@@ -373,22 +412,29 @@ export class Card {
     root.append(style);
 
     const card = Card.mk('div', CardDom.CARD);
-    card.setAttribute('data-state', CardState.LOADING);
+    card.setAttribute(CardDom.STATE_ATTR, CardState.LOADING);
+    card.setAttribute(CardDom.ROLE_ATTR, Aria.DIALOG);
+    card.setAttribute(Aria.LABEL, Txt.CARD_LABEL);
+    card.tabIndex = -1;
 
     const head = Card.mk('header', CardDom.HEAD);
     const quota = Card.mk('span', CardDom.QUOTA);
     quota.hidden = true;
     const svrBox = Card.mk('span', CardDom.SVRS);
-    const close = Card.mk('button', CardDom.CLOSE, '×');
+    const close = Card.mk('button', CardDom.CLOSE, Txt.TIMES);
     close.type = 'button';
     close.title = Txt.CLOSE;
+    close.setAttribute(Aria.LABEL, Txt.CLOSE);
     head.append(Card.mk('span', CardDom.LOGO, Txt.LOGO), svrBox, quota, close);
 
     const body = Card.mk('div', CardDom.BODY);
     const loading = Card.mk('div', CardDom.LOADING);
-    loading.append(Card.mk('div', CardDom.SPIN), Card.mk('p', undefined, Txt.LOADING));
+    const spin = Card.mk('div', CardDom.SPIN);
+    spin.setAttribute(Aria.HIDDEN, String(true));
+    loading.append(spin, Card.mk('p', undefined, Txt.LOADING));
     const err = Card.mk('div', CardDom.ERR);
     const errMsg = Card.mk('p', CardDom.ERR_MSG);
+    errMsg.setAttribute(CardDom.ROLE_ATTR, Aria.ALERT);
     const retry = Card.mk('button', CardDom.RETRY, Txt.RETRY);
     retry.type = 'button';
     err.append(errMsg, retry);
@@ -402,7 +448,10 @@ export class Card {
     set.type = 'button';
     foot.append(open, set);
 
-    card.append(head, body, foot);
+    const live = Card.mk('span', CardDom.SR);
+    live.setAttribute(CardDom.ROLE_ATTR, Aria.STATUS);
+    live.setAttribute(Aria.LIVE, Aria.POLITE);
+    card.append(head, body, foot, live);
     root.append(card);
     document.body.append(host);
 
@@ -413,11 +462,19 @@ export class Card {
     Card.svrBox = svrBox;
     Card.errMsg = errMsg;
     Card.retry = retry;
+    Card.live = live;
 
     close.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      Card.show(false);
+      Card.close();
+    });
+    // Esc 关闭；键盘事件不外传，避免触发宿主页面的快捷键
+    card.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key !== Aria.ESC) return;
+      e.preventDefault();
+      Card.close();
     });
     open.addEventListener('click', (e) => {
       e.stopPropagation();

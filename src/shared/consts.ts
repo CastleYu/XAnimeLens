@@ -47,6 +47,11 @@ export class SvrDef {
   static readonly ORDER = [Svr.TM, Svr.AL, Svr.AT, Svr.BGM];
   /** Bangumi 单次请求超时 */
   static readonly BGM_MS = 6000;
+  /** trace.moe / AnimeTrace 识别请求超时（含上传）；服务卡住时卡片不会一直停在“识别中” */
+  static readonly TM_MS = 30000;
+  static readonly AT_MS = 30000;
+  /** trace.moe 额度查询超时 */
+  static readonly ME_MS = 8000;
   /** 图片下载超时 */
   static readonly IMG_MS = 8000;
   /** 增量推送时等待图片的最长时间，未到的图片留到下次推送 */
@@ -82,6 +87,29 @@ export class TmParam {
   static readonly CUT = 'cutBorders';
 }
 
+/** 右键菜单“识别动漫”：任意网页的图片 / 视频 */
+export class Menu {
+  static readonly ID = 'xal-lens';
+  static readonly CTX: chrome.contextMenus.ContextType[] = ['image', 'video'];
+  /** lens.js 注册在页面隔离环境 globalThis 上的入口函数名 */
+  static readonly HOOK = '__xalLens';
+  /** service worker 上暴露的菜单处理函数名（端到端测试无法点击原生菜单，借此触发） */
+  static readonly TEST_HOOK = '__xalMenu';
+}
+
+/** 右键菜单的媒体类型（chrome.contextMenus.OnClickData.mediaType） */
+export enum Media {
+  IMAGE = 'image',
+  VIDEO = 'video',
+}
+
+/** 页面元素选择器（右键识别查找被点击的媒体元素） */
+export class MediaSel {
+  static readonly IMG = 'img';
+  static readonly VIDEO = 'video';
+  static readonly SOURCE = 'source';
+}
+
 /** 增量识别使用的长连接（chrome.runtime.connect） */
 export class PortDef {
   static readonly RECOG = 'recognize';
@@ -111,7 +139,10 @@ export enum Msg {
 
 /** chrome.storage.local 键 */
 export class Key {
+  /** 0.3.x 及之前：整个收藏集存在一个键里（读取时自动迁移） */
   static readonly FAVS = 'favs';
+  /** 每条收藏一个键：fav:<收藏 key> */
+  static readonly FAV = 'fav:';
   static readonly CFG = 'cfg';
 }
 
@@ -150,6 +181,7 @@ export class Dom {
   static readonly PHOTO_MIN_H = 90;
   static readonly PHOTO_IMG_SEL = 'img[src*="pbs.twimg.com/media/"]';
   /** pbs.twimg.com 图片尺寸参数 */
+  static readonly PIC_HOST = 'pbs.twimg.com';
   static readonly PIC_NAME = 'name';
   static readonly PIC_SIZE = 'large';
   static readonly TWEET_SEL = 'article[data-testid="tweet"]';
@@ -166,6 +198,8 @@ export class Dom {
 export class Page {
   static readonly COLLECTION = 'collection.html';
   static readonly CONTENT_JS = 'content.js';
+  /** 右键识别时按需注入任意网页的脚本 */
+  static readonly LENS_JS = 'lens.js';
   /** 收藏集页面 hash：打开时展开设置并聚焦 API Key */
   static readonly SETTINGS_HASH = '#settings';
 }
@@ -212,6 +246,86 @@ export class ColDom {
   static readonly TAGS = 'col-tags';
   static readonly KIND = 'col-kind';
   static readonly GENRE = 'col-genre';
+  static readonly SRC = 'col-src';
+  static readonly SRC_TAG = 'col-src-tag';
+  static readonly SRC_MULTI = 'col-src-multi';
+  static readonly CHARS = 'col-chars';
+  static readonly SET_AT = 'col-at';
+  static readonly F_KIND = 'col-f-kind';
+  static readonly F_SRC = 'col-f-src';
+  static readonly F_SORT = 'col-f-sort';
+  static readonly TOAST = 'col-toast';
+  static readonly TOAST_MSG = 'col-toast-msg';
+  static readonly TOAST_ACT = 'col-toast-act';
+  static readonly TOAST_ERR = 'col-toast-err';
+}
+
+/** 收藏集排序 */
+export enum ColSort {
+  NEW = 'new',
+  OLD = 'old',
+  TITLE = 'title',
+  SIM = 'sim',
+}
+
+/** 收藏集来源筛选 */
+export enum SrcPick {
+  ALL = 'all',
+  TM = 'tracemoe',
+  AT = 'animetrace',
+  MULTI = 'multi',
+}
+
+/** 收藏集页面参数 */
+export class ColDef {
+  /** 备注输入停顿多久后自动保存 */
+  static readonly NOTE_MS = 600;
+  /** 提示条显示时长（含“撤销”按钮的删除提示） */
+  static readonly TOAST_MS = 6000;
+  static readonly MIN_SIM = 0.5;
+  static readonly MAX_SIM = 1;
+}
+
+/** 收藏集页面文案 */
+export class ColTxt {
+  static readonly COUNT = '共 {n} 条';
+  static readonly COUNT_PART = '显示 {m} / 共 {n} 条';
+  static readonly N = '{n}';
+  static readonly M = '{m}';
+  static readonly EMPTY = '还没有收藏';
+  static readonly NO_MATCH = '没有匹配的收藏';
+  static readonly KIND_ALL = '全部形式';
+  static readonly SRC: Record<SrcPick, string> = {
+    [SrcPick.ALL]: '全部来源',
+    [SrcPick.TM]: 'trace.moe',
+    [SrcPick.AT]: 'AnimeTrace',
+    [SrcPick.MULTI]: '多源一致',
+  };
+  static readonly SORT: Record<ColSort, string> = {
+    [ColSort.NEW]: '最近收藏',
+    [ColSort.OLD]: '最早收藏',
+    [ColSort.TITLE]: '按标题',
+    [ColSort.SIM]: '按相似度',
+  };
+  static readonly F_KIND = '按作品形式筛选';
+  static readonly F_SRC = '按识别来源筛选';
+  static readonly F_SORT = '排序';
+  static readonly EP = '第 {n} 集';
+  static readonly EP_NONE = '-';
+  static readonly SIM = '相似度 {n}%';
+  static readonly TWEET = '来源页面';
+  static readonly BGM = 'bgm.tv';
+  static readonly NOTE = '备注…';
+  static readonly NOTE_LABEL = '备注：';
+  static readonly DEL = '删除';
+  static readonly DEL_LABEL = '删除：';
+  static readonly DELETED = '已删除「{t}」';
+  static readonly T = '{t}';
+  static readonly UNDO = '撤销';
+  static readonly RESTORED = '已恢复「{t}」';
+  static readonly IMPORTED = '导入成功，新增 {n} 条';
+  static readonly IMPORT_FAIL = '导入失败：文件不是有效的收藏集 JSON';
+  static readonly SAVED = '设置已保存';
 }
 
 /** Matcher 打分 */
@@ -300,6 +414,26 @@ export class CardDom {
   static readonly ROLE_ATTR = 'role';
   static readonly ROLE_IMG = 'img';
   static readonly LABEL_ATTR = 'aria-label';
+  /** 仅供读屏的隐藏文本 */
+  static readonly SR = 'xal-sr';
+  /** 对比面板 id 前缀（卡片 Shadow DOM 内唯一） */
+  static readonly CMP_ID = 'xal-cmp-';
+}
+
+/** 无障碍属性与取值 */
+export class Aria {
+  static readonly LABEL = 'aria-label';
+  static readonly PRESSED = 'aria-pressed';
+  static readonly EXPANDED = 'aria-expanded';
+  static readonly CONTROLS = 'aria-controls';
+  static readonly BUSY = 'aria-busy';
+  static readonly HIDDEN = 'aria-hidden';
+  static readonly LIVE = 'aria-live';
+  static readonly POLITE = 'polite';
+  static readonly DIALOG = 'dialog';
+  static readonly ALERT = 'alert';
+  static readonly STATUS = 'status';
+  static readonly ESC = 'Escape';
 }
 
 /** 卡片状态（写入 .xal-card 的 data-state） */
@@ -360,6 +494,14 @@ export class Txt {
   static readonly LOADING = '识别中…';
   static readonly RETRY = '重试';
   static readonly CLOSE = '关闭';
+  static readonly TIMES = '×';
+  static readonly CARD_LABEL = 'XAnimeLens 识别结果';
+  static readonly DONE = '识别完成，共 {n} 条结果';
+  static readonly N = '{n}';
+  static readonly FAV_LABEL = '收藏';
+  static readonly FAVED_SAY = '已收藏';
+  static readonly UNFAVED_SAY = '已取消收藏';
+  static readonly MENU = '用 XAnimeLens 识别动漫';
   static readonly OPEN = '打开收藏集';
   static readonly SETTINGS = '设置 API Key';
   static readonly QUOTA = '近24h';
@@ -521,14 +663,6 @@ export class AtFile {
   static readonly NAME = 'frame.jpg';
 }
 
-/** 收藏集新增 DOM 标识（来源 / 角色 / 设置） */
-export class ColDom2 {
-  static readonly SRC = 'col-src';
-  static readonly SRC_TAG = 'col-src-tag';
-  static readonly SRC_MULTI = 'col-src-multi';
-  static readonly CHARS = 'col-chars';
-  static readonly SET_AT = 'col-at';
-}
 
 /** 旧收藏补全参数 */
 export class BackfillDef {

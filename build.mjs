@@ -11,6 +11,7 @@ const opts = {
   entryPoints: {
     background: 'src/background/main.ts',
     content: 'src/content/main.ts',
+    lens: 'src/content/lens.ts',
     collection: 'src/pages/collection.ts',
   },
   outdir: 'dist',

@@ -16,6 +16,8 @@ XAnimeLens is a browser extension that identifies anime in videos and images on 
 | Your Bangumi access token (optional) | With each Bangumi request | `api.bgm.tv` only | Authenticated Bangumi API access |
 | Cover, character and preview images | When a result card is shown | The image hosts used by these services (e.g. `lain.bgm.tv`, `s4.anilist.co`, `api.trace.moe`, `pbs.twimg.com`) | Display in the card |
 
+The right-click menu item (`contextMenus` permission) adds no new data flow: the recognition script is injected only into the page you right-click, and only after you choose the menu item. It sends only the selected image or frame to the same services listed above.
+
 The extension does **not** read your X account, timeline content, direct messages, cookies or browsing history, and does not send the tweet URL to any service.
 
 ## What is stored
@@ -52,6 +54,8 @@ XAnimeLens 是一个在 X（x.com）上识别视频与图片中动漫出处的�
 | 你的 trace.moe API Key（可选） | 随 trace.moe 请求 | 仅 `api.trace.moe` | 提高额度、显示额度 |
 | 你的 Bangumi Token（可选） | 随 Bangumi 请求 | 仅 `api.bgm.tv` | 以登录身份访问 Bangumi API |
 | 封面、角色头像与预览片段 | 显示结果卡片时 | 上述服务使用的图片域名（如 `lain.bgm.tv`、`s4.anilist.co`、`api.trace.moe`、`pbs.twimg.com`） | 在卡片中展示 |
+
+右键菜单（`contextMenus` 权限）不引入新的数据流：识别脚本只在你点击菜单项后注入到你右键的页面，且只把所选图片或画面帧发送给上述同一服务。
 
 扩展**不会**读取你的 X 账号、时间线内容、私信、Cookie 或浏览记录，也不会把推文链接发送给任何服务。
 

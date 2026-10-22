@@ -198,7 +198,7 @@ export interface Err {
 /** runtime 消息 */
 export type Req =
   | { type: Msg.CAPTURE } // 返回整个可见标签页 dataURL
-  | { type: Msg.FAV_ADD; fav: Fav }
+  | { type: Msg.FAV_ADD; fav: Fav } // 返回实际存储的 key
   | { type: Msg.FAV_DEL; key: string }
   | { type: Msg.FAV_HAS; key: string }
   | { type: Msg.FAV_LIST }
@@ -217,6 +217,7 @@ export interface CardItem {
   cover: string; // dataURL 或空串
   shot: string; // trace.moe 截图 dataURL 或空串
   fav: boolean;
+  favKey: string; // 已收藏时实际存储的 key（同一作品可能以别的 key 收藏过），未收藏为空串
 }
 
 /** background RECOGNIZE 的返回数据 */

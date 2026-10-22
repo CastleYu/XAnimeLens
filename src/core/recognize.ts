@@ -50,7 +50,7 @@ export class Recognizer {
     };
     const pending = new Set<Src>([Src.TM]);
     if (cfg.at) pending.add(Src.AT);
-    const looks: Promise<void>[] = []; // 进行中的 Bangumi 补全
+    const looks: Promise<void>[] = []; // 进行中的后续补全（Bangumi / 额度）
     let left = 0;
     let tmErr: unknown = null;
     let q: Promise<void> = Promise.resolve();
@@ -61,19 +61,9 @@ export class Recognizer {
       q = q.then(() => emit(r, false));
       return q;
     };
-    // Bangumi 补全不阻塞展示：先推送已有数据，每条补全返回后再推送一次
-    const look = (run: () => Promise<BgmSubject | null>, put: (b: BgmSubject | null) => void): void => {
+    // 后续补全不阻塞展示：先推送已有数据，每项补全返回后再推送一次
+    const track = (p: Promise<void>): void => {
       left++;
-      const p = run().then(
-        (b) => {
-          put(b);
-          Svrs.ok(st.svrs, Svr.BGM);
-        },
-        (e) => {
-          put(null);
-          Svrs.fail(st.svrs, Svr.BGM, e);
-        },
-      );
       looks.push(
         p.then(() => {
           left--;
@@ -81,6 +71,19 @@ export class Recognizer {
         }),
       );
     };
+    const look = (run: () => Promise<BgmSubject | null>, put: (b: BgmSubject | null) => void): void =>
+      track(
+        run().then(
+          (b) => {
+            put(b);
+            Svrs.ok(st.svrs, Svr.BGM);
+          },
+          (e) => {
+            put(null);
+            Svrs.fail(st.svrs, Svr.BGM, e);
+          },
+        ),
+      );
 
     void push(); // 先推送一次各服务的等待状态
     const tmP = TraceMoe.search(img, cfg.tmKey).then(
@@ -90,6 +93,12 @@ export class Recognizer {
         Svrs.ok(st.svrs, Svr.TM);
         pending.delete(Src.TM);
         for (const h of st.hits) look(() => Recognizer.bgm(h.anilist, cfg.bgmToken), (b) => st.bgm.set(h.anilist.id, b));
+        // search 返回的额度不含本次请求，以 /me 为准；失败则保留 search 自带的额度
+        track(
+          TraceMoe.me(cfg.tmKey).then((me) => {
+            if (me && st.tr) Object.assign(st.tr, { quota: me.quota, quotaUsed: me.quotaUsed });
+          }),
+        );
         return push();
       },
       (e) => {

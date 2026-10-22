@@ -51,5 +51,7 @@ describe('Capture.big', () => {
   it('无尺寸参数或非法 URL 原样返回', () => {
     expect(Capture.big('https://pbs.twimg.com/media/abc.jpg')).toBe('https://pbs.twimg.com/media/abc.jpg');
     expect(Capture.big('not a url')).toBe('not a url');
+    // 其它网站的 name 参数不改
+    expect(Capture.big('https://example.com/a.jpg?name=small')).toBe('https://example.com/a.jpg?name=small');
   });
 });
